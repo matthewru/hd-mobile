@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, Dimensions, ActivityIndicator, Modal, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, ActivityIndicator, Modal, Alert } from 'react-native';
 import MapView, { Marker, Callout, Region, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { mapStyles } from '@/styles/mapStyles';
 
 // Default San Francisco location for fallback
 const DEFAULT_LOCATION = {
@@ -67,6 +68,10 @@ export default function PoliceViewScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [reportType, setReportType] = useState('');
   const [reportDescription, setReportDescription] = useState('');
+  const [userLocation, setUserLocation] = useState({
+    latitude: DEFAULT_LOCATION.latitude,
+    longitude: DEFAULT_LOCATION.longitude,
+  });
   const mapRef = useRef<MapView | null>(null);
   
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#121212' }, 'background');
@@ -74,6 +79,41 @@ export default function PoliceViewScreen() {
   const primaryColor = useThemeColor({ light: '#0047AB', dark: '#0047AB' }, 'tint'); // Police blue
   const accentColor = useThemeColor({ light: '#B22222', dark: '#B22222' }, 'tint'); // Emergency red
 
+  // Ensure sample reports are loaded
+  useEffect(() => {
+    // Initialize with sample reports
+    setReports(SAMPLE_REPORTS);
+  }, []);
+  
+  // Function to make all markers visible on the map
+  const fitMapToMarkers = () => {
+    if (mapRef.current && reports.length > 0) {
+      const coordinates = reports.map(report => ({
+        latitude: report.latitude,
+        longitude: report.longitude,
+      }));
+      
+      // Add user location to the coordinates
+      coordinates.push({
+        latitude: region.latitude,
+        longitude: region.longitude,
+      });
+      
+      // Calculate padding to ensure all markers are visible
+      const edgePadding = { top: 100, right: 50, bottom: 100, left: 50 };
+      
+      try {
+        mapRef.current.fitToCoordinates(coordinates, {
+          edgePadding,
+          animated: true,
+        });
+        console.log('Map fitted to show all markers');
+      } catch (error) {
+        console.error('Error fitting map to coordinates:', error);
+      }
+    }
+  };
+  
   useEffect(() => {
     let locationTimeout: NodeJS.Timeout;
     
@@ -90,10 +130,23 @@ export default function PoliceViewScreen() {
         locationTimeout = setTimeout(() => {
           console.log('Location retrieval timed out, using default location');
           setRegion(DEFAULT_LOCATION);
+          setUserLocation({
+            latitude: DEFAULT_LOCATION.latitude,
+            longitude: DEFAULT_LOCATION.longitude,
+          });
+          
+          // Ensure reports are spread around the default location
+          const localizedReports = SAMPLE_REPORTS.map(report => ({
+            ...report,
+            latitude: DEFAULT_LOCATION.latitude + (Math.random() - 0.5) * 0.02,
+            longitude: DEFAULT_LOCATION.longitude + (Math.random() - 0.5) * 0.02,
+          }));
+          setReports(localizedReports);
+          
           setIsLoading(false);
           Alert.alert(
             "Using Default Location",
-            "Could not retrieve your current location. In an emulator, set a mock location in the Extended Controls (three dots) > Location."
+            "Could not retrieve your current location. Sample reports are shown around San Francisco."
           );
         }, 5000);
 
@@ -104,12 +157,27 @@ export default function PoliceViewScreen() {
           
           clearTimeout(locationTimeout);
           
-          setRegion({
+          const newRegion = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
             latitudeDelta: 0.0222,
             longitudeDelta: 0.0121,
+          };
+          
+          setRegion(newRegion);
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
           });
+          
+          // Adjust sample reports to be around the user's actual location
+          const localizedReports = SAMPLE_REPORTS.map(report => ({
+            ...report,
+            latitude: location.coords.latitude + (Math.random() - 0.5) * 0.02,
+            longitude: location.coords.longitude + (Math.random() - 0.5) * 0.02,
+          }));
+          setReports(localizedReports);
+          
         } catch (error) {
           console.log('Error getting location:', error);
           setErrorMsg('Could not get your location. Using default location.');
@@ -126,8 +194,35 @@ export default function PoliceViewScreen() {
 
     getLocation();
 
+    // Set up a location subscription to keep tracking user's position
+    let locationSubscription: Location.LocationSubscription;
+    
+    const startLocationUpdates = async () => {
+      try {
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            distanceInterval: 10, // Update every 10 meters
+          },
+          (location) => {
+            setUserLocation({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            });
+          }
+        );
+      } catch (error) {
+        console.log('Error setting up location tracking:', error);
+      }
+    };
+    
+    startLocationUpdates();
+
     return () => {
       clearTimeout(locationTimeout);
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
     };
   }, []);
   
@@ -157,6 +252,11 @@ export default function PoliceViewScreen() {
         longitudeDelta: 0.01,
       };
       
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      
       mapRef.current?.animateToRegion(newRegion, 1000);
       setIsLoading(false);
     } catch (error) {
@@ -175,9 +275,6 @@ export default function PoliceViewScreen() {
     // Sample mock locations
     const mockLocations = [
       { name: "San Francisco", latitude: 37.7749, longitude: -122.4194 },
-      { name: "New York", latitude: 40.7128, longitude: -74.0060 },
-      { name: "London", latitude: 51.5074, longitude: -0.1278 },
-      { name: "Tokyo", latitude: 35.6762, longitude: 139.6503 },
     ];
     
     // Randomly select a location
@@ -250,6 +347,56 @@ export default function PoliceViewScreen() {
     }
   };
 
+  const handleConfirmIncident = (reportId: number) => {
+    // Find the report
+    const report = reports.find(r => r.id === reportId);
+    if (report) {
+      Alert.alert(
+        "Incident Confirmed",
+        `Thank you for confirming this drunk driving incident. This helps us validate our reports.`,
+        [
+          { 
+            text: "OK", 
+            onPress: () => {
+              // Update the report status to confirmed
+              const updatedReports = reports.map(r => 
+                r.id === reportId 
+                  ? {...r, confirmed: true} 
+                  : r
+              );
+              setReports(updatedReports);
+            } 
+          }
+        ]
+      );
+    }
+  };
+
+  const handleRespondToIncident = (reportId: number) => {
+    // Find the report
+    const report = reports.find(r => r.id === reportId);
+    if (report) {
+      Alert.alert(
+        "Responding to Incident",
+        `Officers dispatched to respond to ${report.type} incident: ${report.description}`,
+        [
+          { 
+            text: "OK", 
+            onPress: () => {
+              // Update the report status if needed
+              const updatedReports = reports.map(r => 
+                r.id === reportId 
+                  ? {...r, status: 'Officers Dispatched'} 
+                  : r
+              );
+              setReports(updatedReports);
+            } 
+          }
+        ]
+      );
+    }
+  };
+
   const getMarkerColor = (type: string) => {
     // Since all reports are drunk driving, return red for all markers
     return 'red';
@@ -257,31 +404,37 @@ export default function PoliceViewScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor }]}>
+      <View style={[mapStyles.container, { backgroundColor }]}>
         <ActivityIndicator size="large" color={primaryColor} />
+        <ThemedText style={{ marginTop: 10 }}>Loading map and drunk driving reports...</ThemedText>
       </View>
     );
   }
 
+  // Debug log for markers
+  console.log(`Rendering ${reports.length} drunk driving markers`);
+  
   return (
-    <View style={styles.container}>
-      {/* Title Banner */}
-      <View style={[styles.titleBanner, { backgroundColor: primaryColor }]}>
-        <ThemedText style={styles.titleText}>Police View</ThemedText>
-      </View>
+    <View style={mapStyles.container}>
       
       {/* Map View */}
       <MapView
         ref={mapRef}
-        style={styles.map}
+        style={mapStyles.map}
         region={region}
         onRegionChangeComplete={setRegion}
+        showsUserLocation={false} // Disable default user location blue dot
+        onMapReady={() => {
+          console.log('Map is ready');
+          // Ensure reports are visible by fitting the map to show all markers
+          setTimeout(() => fitMapToMarkers(), 500);
+        }}
       >
-        {/* Location Marker */}
+        {/* Custom Location Marker */}
         <Marker
           coordinate={{
-            latitude: region.latitude,
-            longitude: region.longitude,
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
           }}
           title="Your location"
           description="You are here"
@@ -289,58 +442,74 @@ export default function PoliceViewScreen() {
         />
         
         {/* Incident Report Markers */}
-        {reports.map((report) => (
-          <Marker
-            key={report.id}
-            coordinate={{
-              latitude: report.latitude,
-              longitude: report.longitude,
-            }}
-            pinColor={getMarkerColor(report.type)}
-          >
-            <Callout tooltip>
-              <View style={[styles.calloutView, { backgroundColor }]}>
-                <ThemedText style={styles.calloutTitle}>{report.type}</ThemedText>
-                <ThemedText>{report.description}</ThemedText>
-                <ThemedText style={styles.timestampText}>{report.timestamp}</ThemedText>
-              </View>
-            </Callout>
-          </Marker>
-        ))}
+        {reports.map((report) => {
+          console.log(`Rendering marker at ${report.latitude}, ${report.longitude}`);
+          return (
+            <Marker
+              key={report.id}
+              coordinate={{
+                latitude: report.latitude,
+                longitude: report.longitude,
+              }}
+              pinColor={getMarkerColor(report.type)}
+            >
+              <Callout tooltip>
+                <View style={[mapStyles.calloutView, { backgroundColor }]}>
+                  <ThemedText style={mapStyles.calloutTitle}>{report.type}</ThemedText>
+                  <ThemedText>{report.description}</ThemedText>
+                  <ThemedText style={mapStyles.timestampText}>{report.timestamp}</ThemedText>
+                  
+                  <TouchableOpacity
+                    style={mapStyles.calloutButton}
+                    onPress={() => handleConfirmIncident(report.id)}
+                  >
+                    <ThemedText style={mapStyles.calloutButtonText}>Confirm Incident</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              </Callout>
+            </Marker>
+          );
+        })}
       </MapView>
 
       {/* Legend Panel */}
-      <View style={[styles.legendPanel, { backgroundColor }]}>
-        <ThemedText style={styles.legendTitle}>Drunk Driving Reports</ThemedText>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: 'red' }]} />
-          <ThemedText>Drunk Driving</ThemedText>
+      <View style={[mapStyles.legendPanel, { backgroundColor }]}>
+        <ThemedText style={mapStyles.legendTitle}>Impaired Driving Reports</ThemedText>
+        <View style={mapStyles.legendItem}>
+          <View style={[mapStyles.legendDot, { backgroundColor: 'red' }]} />
+          <ThemedText>Impaired Driving</ThemedText>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: 'blue' }]} />
+        <View style={mapStyles.legendItem}>
+          <View style={[mapStyles.legendDot, { backgroundColor: 'blue' }]} />
           <ThemedText>Your Location</ThemedText>
         </View>
       </View>
       
       {/* Controls */}
-      <View style={styles.controls}>
+      <View style={mapStyles.controls}>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor }]} 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
           onPress={goToMyLocation}
         >
           <Ionicons name="locate" size={24} color={primaryColor} />
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor }]} 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
           onPress={() => setModalVisible(true)}
         >
           <Ionicons name="add-circle" size={24} color={accentColor} />
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor }]} 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
           onPress={setMockLocation}
         >
           <Ionicons name="location" size={24} color={primaryColor} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
+          onPress={fitMapToMarkers}
+        >
+          <Ionicons name="eye" size={24} color={primaryColor} />
         </TouchableOpacity>
       </View>
       
@@ -351,15 +520,15 @@ export default function PoliceViewScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.centeredView}>
-          <View style={[styles.modalView, { backgroundColor }]}>
-            <ThemedText style={styles.modalTitle}>Log New Incident</ThemedText>
+        <View style={mapStyles.centeredView}>
+          <View style={[mapStyles.modalView, { backgroundColor }]}>
+            <ThemedText style={mapStyles.modalTitle}>Log New Incident</ThemedText>
             
-            <ThemedText style={styles.label}>Type of Incident:</ThemedText>
-            <View style={styles.reportTypeContainer}>
+            <ThemedText style={mapStyles.label}>Type of Incident:</ThemedText>
+            <View style={mapStyles.reportTypeContainer}>
               <TouchableOpacity
                 style={[
-                  styles.typeButton,
+                  mapStyles.typeButton,
                   { 
                     backgroundColor: primaryColor,
                     borderColor: primaryColor 
@@ -373,9 +542,9 @@ export default function PoliceViewScreen() {
               </TouchableOpacity>
             </View>
             
-            <ThemedText style={styles.label}>Description:</ThemedText>
+            <ThemedText style={mapStyles.label}>Description:</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor: primaryColor, color: textColor }]}
+              style={[mapStyles.input, { borderColor: primaryColor, color: textColor }]}
               placeholder="Describe the incident..."
               placeholderTextColor="#999"
               multiline
@@ -384,15 +553,15 @@ export default function PoliceViewScreen() {
               onChangeText={setReportDescription}
             />
             
-            <View style={styles.buttonContainer}>
+            <View style={mapStyles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: '#ccc' }]}
+                style={[mapStyles.button, { backgroundColor: '#ccc' }]}
                 onPress={() => setModalVisible(false)}
               >
                 <ThemedText>Cancel</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: primaryColor }]}
+                style={[mapStyles.button, { backgroundColor: primaryColor }]}
                 onPress={handleReportSubmit}
                 disabled={!reportType || !reportDescription}
               >
@@ -405,172 +574,10 @@ export default function PoliceViewScreen() {
       
       {/* Error Message */}
       {errorMsg && (
-        <View style={styles.errorContainer}>
-          <ThemedText style={styles.errorText}>{errorMsg}</ThemedText>
+        <View style={mapStyles.errorContainer}>
+          <ThemedText style={mapStyles.errorText}>{errorMsg}</ThemedText>
         </View>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  titleBanner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 90,
-    paddingTop: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  titleText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  map: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
-  },
-  controls: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-  },
-  controlButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    marginVertical: 5,
-  },
-  legendPanel: {
-    position: 'absolute',
-    top: 100,
-    left: 10,
-    padding: 10,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  legendTitle: {
-    fontWeight: 'bold',
-    marginBottom: 5,
-    fontSize: 16,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  calloutView: {
-    width: 200,
-    padding: 10,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  calloutTitle: {
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  timestampText: {
-    fontSize: 12,
-    marginTop: 5,
-    fontStyle: 'italic',
-  },
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalView: {
-    width: '90%',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  reportTypeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  typeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 20,
-    textAlignVertical: 'top',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  button: {
-    flex: 1,
-    marginHorizontal: 5,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  errorContainer: {
-    position: 'absolute',
-    bottom: 100,
-    backgroundColor: 'rgba(255, 0, 0, 0.7)',
-    padding: 10,
-    borderRadius: 5,
-  },
-  errorText: {
-    color: 'white',
-    textAlign: 'center',
-  },
-});
