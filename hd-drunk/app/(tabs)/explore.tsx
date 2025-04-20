@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, Dimensions, ActivityIndicator, Modal, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, ActivityIndicator, Modal, Alert } from 'react-native';
 import MapView, { Marker, Callout, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { mapStyles } from '@/styles/mapStyles';
 
 // Default San Francisco location for fallback
 const DEFAULT_LOCATION = {
@@ -19,7 +20,7 @@ const DEFAULT_LOCATION = {
 const SAMPLE_REPORTS = [
   {
     id: 1,
-    type: 'Drunk Driving',
+    type: 'Impaired Driving',
     description: 'Car weaving through traffic on Highway 101',
     latitude: 37.78825,
     longitude: -122.4324,
@@ -27,7 +28,7 @@ const SAMPLE_REPORTS = [
   },
   {
     id: 2,
-    type: 'Drunk Driving',
+    type: 'Impaired Driving',
     description: 'Suspected impaired driver at stoplight',
     latitude: 37.79125,
     longitude: -122.4354,
@@ -35,7 +36,7 @@ const SAMPLE_REPORTS = [
   },
   {
     id: 3,
-    type: 'Drunk Driving',
+    type: 'Impaired Driving',
     description: 'Vehicle swerving on Main Street',
     latitude: 37.78525,
     longitude: -122.4294,
@@ -51,6 +52,10 @@ export default function CitizenWatchScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [reportType, setReportType] = useState('');
   const [reportDescription, setReportDescription] = useState('');
+  const [userLocation, setUserLocation] = useState({
+    latitude: DEFAULT_LOCATION.latitude,
+    longitude: DEFAULT_LOCATION.longitude,
+  });
   const mapRef = useRef<MapView | null>(null);
   
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#121212' }, 'background');
@@ -74,6 +79,10 @@ export default function CitizenWatchScreen() {
         locationTimeout = setTimeout(() => {
           console.log('Location retrieval timed out, using default location');
           setRegion(DEFAULT_LOCATION);
+          setUserLocation({
+            latitude: DEFAULT_LOCATION.latitude,
+            longitude: DEFAULT_LOCATION.longitude,
+          });
           setIsLoading(false);
           // No need to show alert again if shown in the other tab
         }, 5000);
@@ -85,11 +94,17 @@ export default function CitizenWatchScreen() {
           
           clearTimeout(locationTimeout);
           
-          setRegion({
+          const newRegion = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
             latitudeDelta: 0.0222,
             longitudeDelta: 0.0121,
+          };
+          
+          setRegion(newRegion);
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
           });
         } catch (error) {
           console.log('Error getting location:', error);
@@ -107,8 +122,35 @@ export default function CitizenWatchScreen() {
 
     getLocation();
 
+    // Set up a location subscription to keep tracking user's position
+    let locationSubscription: Location.LocationSubscription;
+    
+    const startLocationUpdates = async () => {
+      try {
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            distanceInterval: 10, // Update every 10 meters
+          },
+          (location) => {
+            setUserLocation({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            });
+          }
+        );
+      } catch (error) {
+        console.log('Error setting up location tracking:', error);
+      }
+    };
+    
+    startLocationUpdates();
+
     return () => {
       clearTimeout(locationTimeout);
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
     };
   }, []);
   
@@ -137,6 +179,11 @@ export default function CitizenWatchScreen() {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       };
+      
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
       
       mapRef.current?.animateToRegion(newRegion, 1000);
       setIsLoading(false);
@@ -202,32 +249,43 @@ export default function CitizenWatchScreen() {
   };
 
   const getMarkerColor = (type: string) => {
-    // Since all reports are drunk driving, return red for all markers
+    // Since all reports are Impaired driving, return red for all markers
     return 'red';
   };
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor }]}>
+      <View style={[mapStyles.container, { backgroundColor }]}>
         <ActivityIndicator size="large" color={primaryColor} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={mapStyles.container}>
       {/* Title Banner */}
-      <View style={[styles.titleBanner, { backgroundColor: primaryColor }]}>
-        <ThemedText style={styles.titleText}>Citizen Watch</ThemedText>
+      <View style={[mapStyles.titleBanner, { backgroundColor: primaryColor }]}>
+        <ThemedText style={mapStyles.titleText}>Citizen Watch</ThemedText>
       </View>
       
       {/* Map View */}
       <MapView
         ref={mapRef}
-        style={styles.map}
+        style={mapStyles.map}
         region={region}
+        showsUserLocation={false} // Disable default user location blue dot
         onRegionChangeComplete={setRegion}
       >
+        {/* User Location Marker */}
+        <Marker
+          coordinate={{
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+          }}
+          title="Your location"
+          description="You are here"
+          pinColor="blue"
+        />
         {reports.map((report) => (
           <Marker
             key={report.id}
@@ -238,10 +296,23 @@ export default function CitizenWatchScreen() {
             pinColor={getMarkerColor(report.type)}
           >
             <Callout tooltip>
-              <View style={[styles.calloutView, { backgroundColor }]}>
-                <ThemedText style={styles.calloutTitle}>{report.type}</ThemedText>
+              <View style={[mapStyles.calloutView, { backgroundColor }]}>
+                <ThemedText style={mapStyles.calloutTitle}>{report.type}</ThemedText>
                 <ThemedText>{report.description}</ThemedText>
-                <ThemedText style={styles.timestampText}>{report.timestamp}</ThemedText>
+                <ThemedText style={mapStyles.timestampText}>{report.timestamp}</ThemedText>
+                
+                <TouchableOpacity
+                  style={mapStyles.calloutButton}
+                  onPress={() => {
+                    Alert.alert(
+                      "Incident Confirmed",
+                      "Thank you for confirming this Impaired driving incident. This helps us validate our reports.",
+                      [{ text: "OK" }]
+                    );
+                  }}
+                >
+                  <ThemedText style={mapStyles.calloutButtonText}>Confirm Incident</ThemedText>
+                </TouchableOpacity>
               </View>
             </Callout>
           </Marker>
@@ -249,21 +320,21 @@ export default function CitizenWatchScreen() {
       </MapView>
       
       {/* Controls */}
-      <View style={styles.controls}>
+      <View style={mapStyles.controls}>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor }]} 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
           onPress={goToMyLocation}
         >
           <Ionicons name="locate" size={24} color={primaryColor} />
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor }]} 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
           onPress={() => setModalVisible(true)}
         >
           <Ionicons name="alert-circle" size={24} color={accentColor} />
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.controlButton, { backgroundColor }]} 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
           onPress={setMockLocation}
         >
           <Ionicons name="location" size={24} color={primaryColor} />
@@ -277,31 +348,31 @@ export default function CitizenWatchScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.centeredView}>
-          <View style={[styles.modalView, { backgroundColor }]}>
-            <ThemedText style={styles.modalTitle}>Report an Incident</ThemedText>
+        <View style={mapStyles.centeredView}>
+          <View style={[mapStyles.modalView, { backgroundColor }]}>
+            <ThemedText style={mapStyles.modalTitle}>Report an Incident</ThemedText>
             
-            <ThemedText style={styles.label}>Type of Incident:</ThemedText>
-            <View style={styles.reportTypeContainer}>
+            <ThemedText style={mapStyles.label}>Type of Incident:</ThemedText>
+            <View style={mapStyles.reportTypeContainer}>
               <TouchableOpacity
                 style={[
-                  styles.typeButton,
+                  mapStyles.typeButton,
                   { 
                     backgroundColor: primaryColor,
                     borderColor: primaryColor 
                   }
                 ]}
-                onPress={() => setReportType('Drunk Driving')}
+                onPress={() => setReportType('Impaired Driving')}
               >
                 <ThemedText style={{ color: 'white' }}>
-                  Drunk Driving
+                  Impaired Driving
                 </ThemedText>
               </TouchableOpacity>
             </View>
             
-            <ThemedText style={styles.label}>Description:</ThemedText>
+            <ThemedText style={mapStyles.label}>Description:</ThemedText>
             <TextInput
-              style={[styles.input, { borderColor: primaryColor, color: textColor }]}
+              style={[mapStyles.input, { borderColor: primaryColor, color: textColor }]}
               placeholder="Describe what you saw..."
               placeholderTextColor="#999"
               multiline
@@ -310,15 +381,15 @@ export default function CitizenWatchScreen() {
               onChangeText={setReportDescription}
             />
             
-            <View style={styles.buttonContainer}>
+            <View style={mapStyles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: '#ccc' }]}
+                style={[mapStyles.button, { backgroundColor: '#ccc' }]}
                 onPress={() => setModalVisible(false)}
               >
                 <ThemedText>Cancel</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: primaryColor }]}
+                style={[mapStyles.button, { backgroundColor: primaryColor }]}
                 onPress={handleReportSubmit}
                 disabled={!reportType || !reportDescription}
               >
@@ -331,190 +402,23 @@ export default function CitizenWatchScreen() {
       
       {/* Error Message */}
       {errorMsg && (
-        <View style={styles.errorContainer}>
-          <ThemedText style={styles.errorText}>{errorMsg}</ThemedText>
+        <View style={mapStyles.errorContainer}>
+          <ThemedText style={mapStyles.errorText}>{errorMsg}</ThemedText>
         </View>
       )}
       
       {/* Legend Panel */}
-      <View style={[styles.legendPanel, { backgroundColor }]}>
-        <ThemedText style={styles.legendTitle}>Nearby Incidents</ThemedText>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: 'red' }]} />
-          <ThemedText>Drunk Driving</ThemedText>
+      <View style={[mapStyles.legendPanel, { backgroundColor }]}>
+        <ThemedText style={mapStyles.legendTitle}>Nearby Incidents</ThemedText>
+        <View style={mapStyles.legendItem}>
+          <View style={[mapStyles.legendDot, { backgroundColor: 'red' }]} />
+          <ThemedText>Impaired Driving</ThemedText>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: 'green' }]} />
+        <View style={mapStyles.legendItem}>
+          <View style={[mapStyles.legendDot, { backgroundColor: 'green' }]} />
           <ThemedText>Your Location</ThemedText>
         </View>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  titleBanner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 90,
-    paddingTop: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  titleText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  map: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
-  },
-  controls: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-  },
-  controlButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    marginVertical: 5,
-  },
-  calloutView: {
-    width: 200,
-    padding: 10,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  calloutTitle: {
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  timestampText: {
-    fontSize: 12,
-    marginTop: 5,
-    fontStyle: 'italic',
-  },
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalView: {
-    width: '90%',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  reportTypeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  typeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  selectedTypeText: {
-    color: 'white',
-  },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 20,
-    textAlignVertical: 'top',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  button: {
-    flex: 1,
-    marginHorizontal: 5,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  errorContainer: {
-    position: 'absolute',
-    bottom: 100,
-    backgroundColor: 'rgba(255, 0, 0, 0.7)',
-    padding: 10,
-    borderRadius: 5,
-  },
-  errorText: {
-    color: 'white',
-    textAlign: 'center',
-  },
-  legendPanel: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    padding: 10,
-    zIndex: 10,
-  },
-  legendTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 10,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 5,
-  },
-});
