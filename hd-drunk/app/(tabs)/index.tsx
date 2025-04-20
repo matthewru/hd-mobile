@@ -469,6 +469,10 @@ export default function PoliceViewScreen() {
   };
   
   const handleReportSubmit = () => {
+    console.log('Submit button pressed');
+    console.log('reportType:', reportType);
+    console.log('reportDescription:', reportDescription);
+    
     if (reportType && reportDescription) {
       // Generate a random probability between 30 and 70
       const probability = 30 + Math.floor(Math.random() * 41);
@@ -484,10 +488,13 @@ export default function PoliceViewScreen() {
         probability,
       };
       
+      console.log('Creating new report:', newReport);
       setReports([newReport, ...reports]);
       setModalVisible(false);
       setReportType('Impaired Driving');
       setReportDescription('');
+    } else {
+      console.log('Submit failed: reportType or reportDescription is empty');
     }
   };
 

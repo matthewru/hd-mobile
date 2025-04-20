@@ -186,7 +186,7 @@ export default function CitizenWatchScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [reportType, setReportType] = useState('');
+  const [reportType, setReportType] = useState('Impaired Driving');
   const [reportDescription, setReportDescription] = useState('');
   const [userLocation, setUserLocation] = useState({
     latitude: DEFAULT_LOCATION.latitude,
