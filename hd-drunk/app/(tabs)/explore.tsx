@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ActivityIndicator, Modal, Alert } from 'react-native';
-import MapView, { Marker, Callout, Region } from 'react-native-maps';
+import { View, TextInput, TouchableOpacity, ActivityIndicator, Modal, Alert, StyleSheet } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
@@ -25,6 +25,7 @@ const SAMPLE_REPORTS = [
     latitude: 37.78825,
     longitude: -122.4324,
     timestamp: '2h ago',
+    confirmed: false,
   },
   {
     id: 2,
@@ -33,6 +34,7 @@ const SAMPLE_REPORTS = [
     latitude: 37.79125,
     longitude: -122.4354,
     timestamp: '4h ago',
+    confirmed: false,
   },
   {
     id: 3,
@@ -41,8 +43,20 @@ const SAMPLE_REPORTS = [
     latitude: 37.78525,
     longitude: -122.4294,
     timestamp: '1d ago',
+    confirmed: false,
   },
 ];
+
+// Define a type for the report
+type Report = {
+  id: number;
+  type: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+  confirmed: boolean;
+};
 
 export default function CitizenWatchScreen() {
   const [region, setRegion] = useState<Region>(DEFAULT_LOCATION);
@@ -50,6 +64,8 @@ export default function CitizenWatchScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [reportType, setReportType] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [userLocation, setUserLocation] = useState({
@@ -62,6 +78,24 @@ export default function CitizenWatchScreen() {
   const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
   const primaryColor = useThemeColor({ light: '#A1CEDC', dark: '#1D3D47' }, 'tint');
   const accentColor = useThemeColor({ light: '#FF6347', dark: '#FF6347' }, 'tint');
+
+  // Custom styles for confirmation UI
+  const customStyles = StyleSheet.create({
+    confirmedContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0, 128, 0, 0.1)',
+      padding: 8,
+      borderRadius: 5,
+      marginTop: 8,
+    },
+    confirmedText: {
+      marginLeft: 5,
+      fontWeight: 'bold',
+      color: 'green',
+    }
+  });
 
   useEffect(() => {
     let locationTimeout: NodeJS.Timeout;
@@ -239,6 +273,7 @@ export default function CitizenWatchScreen() {
         latitude: region.latitude,
         longitude: region.longitude,
         timestamp: 'Just now',
+        confirmed: false,
       };
       
       setReports([newReport, ...reports]);
@@ -251,6 +286,13 @@ export default function CitizenWatchScreen() {
   const getMarkerColor = (type: string) => {
     // Since all reports are Impaired driving, return red for all markers
     return 'red';
+  };
+
+  // Handle marker press to show report details
+  const handleMarkerPress = (report: Report) => {
+    console.log("Marker pressed for report", report.id);
+    setSelectedReport(report);
+    setReportModalVisible(true);
   };
 
   if (isLoading) {
@@ -294,28 +336,8 @@ export default function CitizenWatchScreen() {
               longitude: report.longitude,
             }}
             pinColor={getMarkerColor(report.type)}
-          >
-            <Callout tooltip>
-              <View style={[mapStyles.calloutView, { backgroundColor }]}>
-                <ThemedText style={mapStyles.calloutTitle}>{report.type}</ThemedText>
-                <ThemedText>{report.description}</ThemedText>
-                <ThemedText style={mapStyles.timestampText}>{report.timestamp}</ThemedText>
-                
-                <TouchableOpacity
-                  style={mapStyles.calloutButton}
-                  onPress={() => {
-                    Alert.alert(
-                      "Incident Confirmed",
-                      "Thank you for confirming this Impaired driving incident. This helps us validate our reports.",
-                      [{ text: "OK" }]
-                    );
-                  }}
-                >
-                  <ThemedText style={mapStyles.calloutButtonText}>Confirm Incident</ThemedText>
-                </TouchableOpacity>
-              </View>
-            </Callout>
-          </Marker>
+            onPress={() => handleMarkerPress(report)}
+          />
         ))}
       </MapView>
       
@@ -400,6 +422,86 @@ export default function CitizenWatchScreen() {
         </View>
       </Modal>
       
+      {/* Report Details Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={reportModalVisible}
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={[styles.modalView, { backgroundColor }]}>
+            {selectedReport && (
+              <>
+                <ThemedText style={styles.modalTitle}>{selectedReport.type}</ThemedText>
+                <ThemedText style={styles.modalDescription}>{selectedReport.description}</ThemedText>
+                <ThemedText style={styles.timestampText}>{selectedReport.timestamp}</ThemedText>
+                
+                {selectedReport.confirmed ? (
+                  <View style={customStyles.confirmedContainer}>
+                    <Ionicons name="checkmark-circle" size={16} color="green" />
+                    <ThemedText style={customStyles.confirmedText}>Incident Confirmed</ThemedText>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[
+                      mapStyles.calloutButton, 
+                      { 
+                        padding: 12,
+                        backgroundColor: primaryColor,
+                        borderRadius: 8,
+                        marginTop: 15,
+                        marginBottom: 5,
+                        width: '80%',
+                        alignItems: 'center',
+                      }
+                    ]}
+                    onPress={() => {
+                      console.log("Button pressed for report", selectedReport.id);
+                      Alert.alert(
+                        "Incident Confirmed",
+                        "Thank you for confirming this Impaired Driving incident. This helps us validate our reports.",
+                        [{ 
+                          text: "OK",
+                          onPress: () => {
+                            console.log("Alert OK pressed");
+                            // Update the report status to confirmed
+                            const updatedReports = reports.map(r => 
+                              r.id === selectedReport.id 
+                                ? {...r, confirmed: true} 
+                                : r
+                            );
+                            setReports(updatedReports);
+                            setReportModalVisible(false);
+                          }
+                        }]
+                      );
+                    }}
+                  >
+                    <ThemedText style={{ color: 'white', fontWeight: 'bold' }}>Confirm Incident</ThemedText>
+                  </TouchableOpacity>
+                )}
+                
+                <TouchableOpacity
+                  style={[
+                    mapStyles.button, 
+                    { 
+                      backgroundColor: '#ccc',
+                      marginTop: 15,
+                      width: '80%',
+                      alignItems: 'center',
+                    }
+                  ]}
+                  onPress={() => setReportModalVisible(false)}
+                >
+                  <ThemedText>Close</ThemedText>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+      
       {/* Error Message */}
       {errorMsg && (
         <View style={mapStyles.errorContainer}>
@@ -422,3 +524,40 @@ export default function CitizenWatchScreen() {
     </View>
   );
 }
+const styles = StyleSheet.create({
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    width: '80%',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalDescription: {
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  timestampText: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 5,
+  },
+});
+
