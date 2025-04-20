@@ -399,10 +399,6 @@ export default function CitizenWatchScreen() {
 
   return (
     <View style={mapStyles.container}>
-      {/* Title Banner */}
-      <View style={[mapStyles.titleBanner, { backgroundColor: primaryColor }]}>
-        <ThemedText style={mapStyles.titleText}>Citizen Watch</ThemedText>
-      </View>
       
       {/* Map View */}
       <MapView
@@ -489,26 +485,7 @@ export default function CitizenWatchScreen() {
       >
         <View style={mapStyles.centeredView}>
           <View style={[mapStyles.modalView, { backgroundColor }]}>
-            <ThemedText style={mapStyles.modalTitle}>Report an Incident</ThemedText>
-            
-            <ThemedText style={mapStyles.label}>Type of Incident:</ThemedText>
-            <View style={mapStyles.reportTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  mapStyles.typeButton,
-                  { 
-                    backgroundColor: primaryColor,
-                    borderColor: primaryColor 
-                  }
-                ]}
-                onPress={() => setReportType('Impaired Driving')}
-              >
-                <ThemedText style={{ color: 'white' }}>
-                  Impaired Driving
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-            
+            <ThemedText style={mapStyles.modalTitle}>Report an Impaired Driving Incident</ThemedText>
             <ThemedText style={mapStyles.label}>Description:</ThemedText>
             <TextInput
               style={[mapStyles.input, { borderColor: primaryColor, color: textColor }]}
@@ -547,7 +524,7 @@ export default function CitizenWatchScreen() {
       )}
       
       {/* Legend Panel */}
-      <View style={[mapStyles.legendPanel, { backgroundColor }]}>
+      {/* <View style={[mapStyles.legendPanel, { backgroundColor }]}>
         <ThemedText style={mapStyles.legendTitle}>Nearby Incidents</ThemedText>
         <View style={mapStyles.legendItem}>
           <View style={[mapStyles.legendDot, { backgroundColor: 'red' }]} />
@@ -557,7 +534,7 @@ export default function CitizenWatchScreen() {
           <View style={[mapStyles.legendDot, { backgroundColor: 'green' }]} />
           <ThemedText>Your Location</ThemedText>
         </View>
-      </View>
+      </View> */}
     </View>
   );
 }
