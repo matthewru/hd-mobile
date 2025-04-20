@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -11,12 +11,14 @@ import {
   Dimensions,
   StatusBar,
   ActivityIndicator,
-  Keyboard
+  Keyboard,
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Stack } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,9 +26,8 @@ const { width, height } = Dimensions.get('window');
 const BONE_WHITE = '#F8F7F4';
 
 export default function LandingScreen() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [secureTextEntry, setSecureTextEntry] = useState(true);
   const router = useRouter();
   
@@ -36,36 +37,70 @@ export default function LandingScreen() {
   const primaryColor = useThemeColor({ light: '#0047AB', dark: '#4682B4' }, 'tint'); // Police blue
   const cardBackground = '#FFFFFF';
   
-  const handleLogin = () => {
+  const handleLogin = async () => {
     Keyboard.dismiss(); // Dismiss keyboard on login attempt
-    
-    if (!username || !password) {
-      alert('Please enter both username and password');
-      return;
-    }
-    
-    setLoading(true);
-    
-    // Simulate login process
-    setTimeout(() => {
-      setLoading(false);
-      
-      // Navigate to the main app
-      router.replace('/(tabs)');
-    }, 1500);
+    try {
+        const response = await fetch(`http://127.0.0.1:5000/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+        
+        const data = await response.json();
+        
+        // For React Native, you might use AsyncStorage instead of localStorage
+        if (data.status === 'success') {
+          await AsyncStorage.setItem('user', JSON.stringify(data.user));
+          
+          // Check user role and navigate to appropriate view
+          const userRole = data.user.role;
+          console.log('User role:', userRole);
+          
+          if (userRole === 'law enforcement') {
+            // Navigate to police view
+            router.replace('/lawenforce');
+          } else if (userRole === 'community') {
+            // Navigate to community view
+            router.replace('/community');
+          } else {
+            // Default route if role is undefined
+            router.replace('/community');
+          }
+          
+          return data;
+        } else {
+          // Show error message for failed login
+          Alert.alert(
+            "Login Failed",
+            data.message || "Invalid credentials. Please try again."
+          );
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('Login error:', error);
+        Alert.alert(
+          "Login Error",
+          "Could not connect to the server. Please try again later."
+        );
+        throw error;
+      }
   };
   
   const handleGuestLogin = () => {
     Keyboard.dismiss(); // Dismiss keyboard on guest login
-    setLoading(true);
     
-    // Simulate login process
+    // Guest users always go to the Community view
     setTimeout(() => {
-      setLoading(false);
-      
-      // Navigate to the main app
-      router.replace('/(tabs)');
+      router.replace('/community');
     }, 1000);
+  };
+
+  const handleSignUp = () => {
+    // Navigate to the registration page
+    router.push('/register');
   };
 
   return (
@@ -77,7 +112,7 @@ export default function LandingScreen() {
       >
         {/* Configure the screen header */}
         <Stack.Screen options={{ 
-          title: "RoadWatch",
+          title: "heq.tech",
           headerShown: false, // Hide the header completely
         }} />
         
@@ -89,7 +124,7 @@ export default function LandingScreen() {
             <View style={styles.logoCircle}>
               <Ionicons name="shield" size={48} color={primaryColor} />
             </View>
-            <Text style={[styles.title, { color: textColor }]}>RoadWatch</Text>
+            <Text style={[styles.title, { color: textColor }]}>heq.tech</Text>
             <Text style={[styles.subtitle, { color: textColor }]}>Report Impaired Driving</Text>
           </View>
           
@@ -98,14 +133,15 @@ export default function LandingScreen() {
             <Text style={[styles.loginTitle, { color: textColor }]}>Sign In</Text>
             
             <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color="#777" style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={20} color="#777" style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: textColor }]}
-                placeholder="Username"
+                placeholder="Email"
                 placeholderTextColor="#999"
-                value={username}
-                onChangeText={setUsername}
+                value={email}
+                onChangeText={setEmail}
                 autoCapitalize="none"
+                keyboardType="email-address"
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
@@ -138,13 +174,8 @@ export default function LandingScreen() {
             <TouchableOpacity 
               style={[styles.loginButton, { backgroundColor: primaryColor }]}
               onPress={handleLogin}
-              disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <Text style={styles.loginButtonText}>Sign In</Text>
-              )}
+              <Text style={styles.loginButtonText}>Sign In</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.forgotPassword}>
@@ -160,7 +191,6 @@ export default function LandingScreen() {
             <TouchableOpacity 
               style={styles.guestButton}
               onPress={handleGuestLogin}
-              disabled={loading}
             >
               <Text style={styles.guestButtonText}>Continue as Guest</Text>
             </TouchableOpacity>
@@ -168,7 +198,7 @@ export default function LandingScreen() {
           
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: textColor }]}>Don't have an account? </Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={handleSignUp}>
               <Text style={[styles.signUpText, { color: primaryColor }]}>Sign Up</Text>
             </TouchableOpacity>
           </View>

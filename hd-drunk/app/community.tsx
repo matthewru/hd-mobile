@@ -16,173 +16,68 @@ const DEFAULT_LOCATION = {
 };
 
 // Sample mock data for citizen reports
-// Sample mock data for citizen reports
 const SAMPLE_REPORTS = [
   {
-    id: 1,
-    type: 'Impaired Driving',
-    description: 'Car weaving through traffic on Highway 101',
+    report_id: 1,
+    descriptor: 'Car weaving through traffic on Highway 101',
     latitude: 37.78825,
     longitude: -122.4324,
-    timestamp: '2h ago',
+    confirm_bool: "null",
+    probability: 65
   },
   {
-    id: 2,
-    type: 'Impaired Driving',
-    description: 'Suspected impaired driver at stoplight',
+    report_id: 2,
+    descriptor: 'Suspected impaired driver at stoplight',
     latitude: 37.79125,
     longitude: -122.4354,
-    timestamp: '4h ago',
+    confirm_bool: "null",
+    probability: 55
   },
   {
-    id: 3,
-    type: 'Impaired Driving',
-    description: 'Vehicle swerving on Main Street',
+    report_id: 3,
+    descriptor: 'Vehicle swerving on Main Street',
     latitude: 37.78525,
     longitude: -122.4294,
-    timestamp: '1d ago',
+    confirm_bool: "null",
+    probability: 70
   },
   {
-    id: 4,
-    type: 'Impaired Driving',
-    description: 'Erratic driving near the park',
+    report_id: 4,
+    descriptor: 'Erratic driving near the park',
     latitude: 37.78675,
     longitude: -122.4319,
-    timestamp: '30m ago',
+    confirm_bool: "null",
+    probability: 60
   },
   {
-    id: 5,
-    type: 'Impaired Driving',
-    description: 'Driver ran a red light',
+    report_id: 5,
+    descriptor: 'Driver ran a red light',
     latitude: 37.78925,
     longitude: -122.4344,
-    timestamp: '15m ago',
-  },
-  {
-    id: 6,
-    type: 'Impaired Driving',
-    description: 'Car speeding in residential area',
-    latitude: 37.78725,
-    longitude: -122.4334,
-    timestamp: '10m ago',
-  },
-  {
-    id: 7,
-    type: 'Impaired Driving',
-    description: 'Driver almost hit a pedestrian',
-    latitude: 37.78425,
-    longitude: -122.4304,
-    timestamp: '5m ago',
-  },
-  {
-    id: 8,
-    type: 'Impaired Driving',
-    description: 'Car stopped in the middle of the road',
-    latitude: 37.79025,
-    longitude: -122.4364,
-    timestamp: '1h ago',
-  },
-  {
-    id: 9,
-    type: 'Impaired Driving',
-    description: 'Driver swerving between lanes',
-    latitude: 37.78875,
-    longitude: -122.4329,
-    timestamp: '3h ago',
-  },
-  {
-    id: 10,
-    type: 'Impaired Driving',
-    description: 'Car driving on the wrong side of the road',
-    latitude: 37.78975,
-    longitude: -122.4339,
-    timestamp: '2h ago',
-  },
-  {
-    id: 11,
-    type: 'Impaired Driving',
-    description: 'Driver honking excessively',
-    latitude: 37.78775,
-    longitude: -122.4314,
-    timestamp: '45m ago',
-  },
-  {
-    id: 12,
-    type: 'Impaired Driving',
-    description: 'Car parked in the middle of the intersection',
-    latitude: 37.78625,
-    longitude: -122.4299,
-    timestamp: '20m ago',
-  },
-  {
-    id: 13,
-    type: 'Impaired Driving',
-    description: 'Erratic driving near the park',
-    latitude: 38.5001,
-    longitude: -121.7501,
-    timestamp: '10m ago',
-  },
-  {
-    id: 14,
-    type: 'Impaired Driving',
-    description: 'Driver ran a red light',
-    latitude: 38.5015,
-    longitude: -121.7512,
-    timestamp: '15m ago',
-  },
-  {
-    id: 15,
-    type: 'Impaired Driving',
-    description: 'Car speeding in residential area',
-    latitude: 38.5023,
-    longitude: -121.7523,
-    timestamp: '20m ago',
-  },
-  {
-    id: 16,
-    type: 'Impaired Driving',
-    description: 'Driver almost hit a pedestrian',
-    latitude: 38.5031,
-    longitude: -121.7534,
-    timestamp: '25m ago',
-  },
-  {
-    id: 17,
-    type: 'Impaired Driving',
-    description: 'Car stopped in the middle of the road',
-    latitude: 38.5042,
-    longitude: -121.7545,
-    timestamp: '30m ago',
-  },
-  {
-    id: 18,
-    type: 'Impaired Driving',
-    description: 'Driver swerving between lanes',
-    latitude: 38.5053,
-    longitude: -121.7556,
-    timestamp: '35m ago',
-  },
-  {
-    id: 19,
-    type: 'Impaired Driving',
-    description: 'Car driving on the wrong side of the road',
-    latitude: 38.5064,
-    longitude: -121.7567,
-    timestamp: '40m ago',
-  },
-  {
-    id: 20,
-    type: 'Impaired Driving',
-    description: 'Driver honking excessively',
-    latitude: 38.5075,
-    longitude: -121.7578,
-    timestamp: '45m ago',
-  },
+    confirm_bool: "null",
+    probability: 40
+  }
 ];
+
+// Define a type for the report
+type Report = {
+  report_id: number;
+  descriptor: string;
+  latitude: number;
+  longitude: number;
+  confirm_bool: string;
+  probability?: number;
+  // Keep these for backward compatibility with sample data
+  id?: number;
+  type?: string;
+  description?: string;
+  timestamp?: string;
+  confirmed?: boolean;
+};
 
 export default function CitizenWatchScreen() {
   const [region, setRegion] = useState<Region>(DEFAULT_LOCATION);
-  const [reports, setReports] = useState(SAMPLE_REPORTS);
+  const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -192,12 +87,76 @@ export default function CitizenWatchScreen() {
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
   });
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
   const mapRef = useRef<MapView | null>(null);
   
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#121212' }, 'background');
   const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
   const primaryColor = useThemeColor({ light: '#A1CEDC', dark: '#1D3D47' }, 'tint');
   const accentColor = useThemeColor({ light: '#FF6347', dark: '#FF6347' }, 'tint');
+
+  // Function to make all markers visible on the map
+  const fitMapToMarkers = () => {
+    if (mapRef.current && reports.length > 0) {
+      const coordinates = reports.map(report => ({
+        latitude: report.latitude,
+        longitude: report.longitude,
+      }));
+      
+      // Add user location to the coordinates
+      coordinates.push({
+        latitude: region.latitude,
+        longitude: region.longitude,
+      });
+      
+      // Calculate padding to ensure all markers are visible
+      const edgePadding = { top: 100, right: 50, bottom: 100, left: 50 };
+      
+      try {
+        mapRef.current.fitToCoordinates(coordinates, {
+          edgePadding,
+          animated: true,
+        });
+        console.log('Map fitted to show all markers');
+      } catch (error) {
+        console.error('Error fitting map to coordinates:', error);
+      }
+    }
+  };
+
+  // Function to fetch community reports from the API
+  const fetchReports = async () => {
+    setIsLoadingReports(true);
+    try {
+      // Replace with your actual API endpoint
+      const response = await fetch('http://127.0.0.1:5000/api/reports/');
+      
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === 'success' && Array.isArray(data.reports)) {
+        console.log(`Fetched ${data.reports.length} reports from API`);
+        setReports(data.reports);
+      } else {
+        console.log('Using sample reports as fallback');
+        // Fallback to sample data if the API response format is unexpected
+        setReports(SAMPLE_REPORTS);
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      Alert.alert(
+        "Data Loading Error",
+        "Could not load reports from server. Using sample data instead."
+      );
+      // Use sample data as fallback
+      setReports(SAMPLE_REPORTS);
+    } finally {
+      setIsLoadingReports(false);
+    }
+  };
 
   useEffect(() => {
     let locationTimeout: NodeJS.Timeout;
@@ -257,6 +216,9 @@ export default function CitizenWatchScreen() {
     };
 
     getLocation();
+    
+    // Fetch reports from API
+    fetchReports();
 
     // Set up a location subscription to keep tracking user's position
     let locationSubscription: Location.LocationSubscription;
@@ -330,63 +292,61 @@ export default function CitizenWatchScreen() {
     }
   };
 
-  const setMockLocation = () => {
-    // Sample mock locations
-    const mockLocations = [
-      { name: "San Francisco", latitude: 37.7749, longitude: -122.4194 },
-      { name: "New York", latitude: 40.7128, longitude: -74.0060 },
-      { name: "London", latitude: 51.5074, longitude: -0.1278 },
-      { name: "Tokyo", latitude: 35.6762, longitude: 139.6503 },
-    ];
-    
-    // Randomly select a location
-    const randomLocation = mockLocations[Math.floor(Math.random() * mockLocations.length)];
-    
-    const newRegion = {
-      latitude: randomLocation.latitude,
-      longitude: randomLocation.longitude,
-      latitudeDelta: 0.0222,
-      longitudeDelta: 0.0121,
-    };
-    
-    // Update the reports to be around the new location
-    const updatedReports = SAMPLE_REPORTS.map(report => ({
-      ...report,
-      latitude: randomLocation.latitude + (Math.random() - 0.5) * 0.02,
-      longitude: randomLocation.longitude + (Math.random() - 0.5) * 0.02,
-    }));
-    
-    setReports(updatedReports);
-    setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 1000);
-    
-    Alert.alert(
-      "Mock Location Set",
-      `Community reports now showing for ${randomLocation.name}`
-    );
-  };
-
-  const handleReportSubmit = () => {
+  const handleReportSubmit = async () => {
     if (reportType && reportDescription) {
+      // Generate a random probability between 30 and 70
+      const probability = 30 + Math.floor(Math.random() * 41);
+      
       const newReport = {
-        id: Date.now(),
-        type: reportType,
-        description: reportDescription,
+        report_id: Date.now(),
+        descriptor: reportDescription,
         latitude: region.latitude,
         longitude: region.longitude,
-        timestamp: 'Just now',
+        confirm_bool: "null",
+        probability: probability,
       };
+
+      try {
+        // Send the report to the API
+        await fetch('http://127.0.0.1:5000/api/reports/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newReport),
+        });
+
+        // Add the new report to the local state
+        setReports([newReport, ...reports]);
+        Alert.alert(
+          "Report Submitted",
+          "Thank you for reporting this incident. Law enforcement will review it."
+        );
+      } catch (error) {
+        console.error('Error submitting report:', error);
+        Alert.alert(
+          "Submission Error",
+          "There was a problem submitting your report. Please try again."
+        );
+      }
       
-      setReports([newReport, ...reports]);
+      // Close the modal and reset form fields
       setModalVisible(false);
-      setReportType('');
+      setReportType('Impaired Driving');
       setReportDescription('');
+    } else {
+      Alert.alert("Input Required", "Please provide a description of the incident.");
     }
   };
 
   const getMarkerColor = (type: string) => {
     // Since all reports are Impaired driving, return red for all markers
     return 'red';
+  };
+
+  // Add a refresh function to manually reload reports
+  const refreshReports = () => {
+    fetchReports();
   };
 
   if (isLoading) {
@@ -402,57 +362,56 @@ export default function CitizenWatchScreen() {
       
       {/* Map View */}
       <MapView
-  ref={mapRef}
-  style={mapStyles.map}
-  region={region}
-  showsUserLocation={false} // Disable default user location blue dot
-  onRegionChangeComplete={setRegion}
->
-  {/* Custom Heatmap using Circles */}
-  {reports.map((report, index) => (
-    <Circle
-      key={`heatmap-${index}`}
-      center={{
-        latitude: report.latitude,
-        longitude: report.longitude,
-      }}
-      radius={500} // Adjust radius to represent density
-      fillColor="rgba(255, 0, 0, 0.3)" // Semi-transparent red
-      strokeColor="rgba(255, 0, 0, 0.1)" // Optional: lighter stroke
-    />
-  ))}
+        ref={mapRef}
+        style={mapStyles.map}
+        region={region}
+        showsUserLocation={false} // Disable default user location blue dot
+        onRegionChangeComplete={setRegion}
+        onMapReady={() => {
+          console.log('Map is ready');
+          // Ensure reports are visible by fitting the map to show all markers
+          setTimeout(() => fitMapToMarkers(), 500);
+        }}
+      >
+        {/* Custom Heatmap using Circles */}
+        {reports.map((report, index) => (
+          <Circle
+            key={`heatmap-${index}`}
+            center={{
+              latitude: report.latitude,
+              longitude: report.longitude,
+            }}
+            radius={500} // Adjust radius to represent density
+            fillColor="rgba(255, 0, 0, 0.3)" // Semi-transparent red
+            strokeColor="rgba(255, 0, 0, 0.1)" // Optional: lighter stroke
+          />
+        ))}
 
-  {/* User Location Marker */}
-  <Marker
-    coordinate={{
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-    }}
-    title="Your location"
-    description="You are here"
-    pinColor="blue"
-  />
-
-  {/* Report Markers
-  {reports.map((report) => (
-    <Marker
-      key={report.id}
-      coordinate={{
-        latitude: report.latitude,
-        longitude: report.longitude,
-      }}
-      pinColor={getMarkerColor(report.type)}
-    >
-      <Callout tooltip>
-        <View style={[mapStyles.calloutView, { backgroundColor }]}>
-          <ThemedText style={mapStyles.calloutTitle}>{report.type}</ThemedText>
-          <ThemedText>{report.description}</ThemedText>
-          <ThemedText style={mapStyles.timestampText}>{report.timestamp}</ThemedText>
-        </View>
-      </Callout>
-    </Marker>
-  ))} */}
-</MapView>
+        {/* Custom Location Marker */}
+        <Marker
+          coordinate={{
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+          }}
+          title="Your location"
+          description="You are here"
+        >
+          <View style={{
+            backgroundColor: primaryColor,
+            borderRadius: 50,
+            padding: 8,
+            borderWidth: 2,
+            borderColor: 'white',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+          }}>
+            <Ionicons name="person" size={18} color="white" />
+          </View>
+        </Marker>
+      </MapView>
       
       {/* Controls */}
       <View style={mapStyles.controls}>
@@ -470,9 +429,20 @@ export default function CitizenWatchScreen() {
         </TouchableOpacity>
         <TouchableOpacity 
           style={[mapStyles.controlButton, { backgroundColor }]} 
-          onPress={setMockLocation}
+          onPress={fitMapToMarkers}
         >
-          <Ionicons name="location" size={24} color={primaryColor} />
+          <Ionicons name="eye" size={24} color={primaryColor} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
+          onPress={refreshReports}
+          disabled={isLoadingReports}
+        >
+          {isLoadingReports ? (
+            <ActivityIndicator size="small" color={primaryColor} />
+          ) : (
+            <Ionicons name="refresh" size={24} color={primaryColor} />
+          )}
         </TouchableOpacity>
       </View>
       
@@ -507,7 +477,7 @@ export default function CitizenWatchScreen() {
               <TouchableOpacity
                 style={[mapStyles.button, { backgroundColor: primaryColor }]}
                 onPress={handleReportSubmit}
-                disabled={!reportType || !reportDescription}
+                disabled={!reportDescription}
               >
                 <ThemedText style={{ color: 'white', fontWeight: 'bold' }}>Submit</ThemedText>
               </TouchableOpacity>

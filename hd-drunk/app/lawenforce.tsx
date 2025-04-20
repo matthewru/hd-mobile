@@ -19,75 +19,55 @@ const DEFAULT_LOCATION = {
 // Sample incident reports
 const SAMPLE_REPORTS = [
   {
-    id: 1,
-    type: 'Impaired Driving',
-    description: 'Vehicle swerving between lanes on highway',
+    report_id: 1,
     latitude: 37.78825,
     longitude: -122.4324,
-    timestamp: '2h ago',
-    confirmed: false,
     probability: 70,
+    descriptor: 'Vehicle swerving between lanes on highway',
+    confirm_bool: "impaired",
   },
   {
-    id: 2,
-    type: 'Impaired Driving',
-    description: 'Driver exhibiting erratic behavior at intersection',
+    report_id: 2,
     latitude: 37.79125,
     longitude: -122.4354,
-    timestamp: '4h ago',
-    confirmed: false,
     probability: 55,
+    descriptor: 'Driver exhibiting erratic behavior at intersection',
+    confirm_bool: "impaired",
   },
   {
-    id: 3,
-    type: 'Impaired Driving',
-    description: 'Vehicle swerving across multiple lanes',
+    report_id: 3,
     latitude: 37.78525,
     longitude: -122.4294,
-    timestamp: '1d ago',
-    confirmed: false,
-    probability: 45,
+    probability: 70,
+    descriptor: 'Vehicle swerving between lanes on highway',
+    confirm_bool: "impaired",
   },
   {
-    id: 4,
-    type: 'Impaired Driving',
-    description: 'Car over-correcting in traffic and swerving erratically',
-    latitude: 37.7855,
-    longitude: -122.4175,
-    timestamp: '3h ago',
-    confirmed: false,
-    probability: 65,
-  },
-  {
-    id: 5,
-    type: 'Impaired Driving',
-    description: 'Driver unable to maintain lane position',
-    latitude: 37.7895,
-    longitude: -122.4275,
-    timestamp: '5h ago',
-    confirmed: false,
-    probability: 30,
-  },
+    report_id: 4,
+    latitude: 37.79125,
+    longitude: -122.4354,
+    probability: 55,
+    descriptor: 'Driver exhibiting erratic behavior at intersection',
+    confirm_bool: "impaired",
+  }
 ];
 
 // Define a type for the report
 type Report = {
-  id: number;
-  type: string;
-  description: string;
+  report_id: number;
   latitude: number;
   longitude: number;
-  timestamp: string;
-  confirmed: boolean;
-  status?: string;
-  probability?: number; // Probability of impaired driving (30-70%)
+  probability?: number; 
+  descriptor: string;
+  confirm_bool: string;
+  status?: string; // Probability of impaired driving (30-70%)
 };
 
 export default function PoliceViewScreen() {
   const [region, setRegion] = useState<Region>(DEFAULT_LOCATION);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [reports, setReports] = useState(SAMPLE_REPORTS);
+  const [reports, setReports] = useState<Report[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [reportType, setReportType] = useState('Impaired Driving');
@@ -97,6 +77,7 @@ export default function PoliceViewScreen() {
     longitude: DEFAULT_LOCATION.longitude,
   });
   const [markerPressed, setMarkerPressed] = useState(false); // Track marker press events
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
   const mapRef = useRef<MapView | null>(null);
   
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#121212' }, 'background');
@@ -214,10 +195,44 @@ export default function PoliceViewScreen() {
     },
   });
 
+  // Function to fetch reports from the API
+  const fetchReports = async () => {
+    setIsLoadingReports(true);
+    try {
+      // Replace with your actual API endpoint
+      const response = await fetch('http://127.0.0.1:5000/api/reports');
+      
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === 'success' && Array.isArray(data.reports)) {
+        console.log(`Fetched ${data.reports.length} reports from API`);
+        setReports(data.reports);
+      } else {
+        console.log('Using sample reports as fallback');
+        // Fallback to sample data if the API response format is unexpected
+        setReports(SAMPLE_REPORTS);
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      Alert.alert(
+        "Data Loading Error",
+        "Could not load reports from server. Using sample data instead."
+      );
+      // Use sample data as fallback
+      setReports(SAMPLE_REPORTS);
+    } finally {
+      setIsLoadingReports(false);
+    }
+  };
+
   // Ensure sample reports are loaded
   useEffect(() => {
-    // Initialize with sample reports
-    setReports(SAMPLE_REPORTS);
+    // Try to fetch reports from API, fall back to samples if needed
+    fetchReports();
   }, []);
   
   // Function to make all markers visible on the map
@@ -405,70 +420,8 @@ export default function PoliceViewScreen() {
       );
     }
   };
-
-  const setMockLocation = () => {
-    // Sample mock locations
-    const mockLocations = [
-      { name: "San Francisco", latitude: 37.7749, longitude: -122.4194 },
-    ];
-    
-    // Randomly select a location
-    const randomLocation = mockLocations[Math.floor(Math.random() * mockLocations.length)];
-    
-    const newRegion = {
-      latitude: randomLocation.latitude,
-      longitude: randomLocation.longitude,
-      latitudeDelta: 0.0222,
-      longitudeDelta: 0.0121,
-    };
-    
-    // Sample descriptions for impaired driving incidents
-    const impairedDrivingDescriptions = [
-      "Vehicle swerving between lanes",
-      "Car driving erratically and unable to maintain lane",
-      "Driver over-correcting at turns",
-      "Vehicle weaving through traffic erratically",
-      "Car drifting across lane markers repeatedly",
-      "Vehicle making sudden lane changes without signaling",
-      "Driver showing erratic speed changes and lane position",
-      "Car swerving to avoid imaginary obstacles",
-      "Vehicle unable to maintain consistent speed and position",
-      "Driver exhibiting delayed reactions at intersections"
-    ];
-    
-    // Generate 6-10 random reports around the location
-    const numReports = 6 + Math.floor(Math.random() * 5);
-    const newReports = [];
-    
-    for (let i = 0; i < numReports; i++) {
-      const description = impairedDrivingDescriptions[Math.floor(Math.random() * impairedDrivingDescriptions.length)];
-      const hours = Math.floor(Math.random() * 12) + 1;
-      // Generate a random probability between 30 and 70
-      const probability = 30 + Math.floor(Math.random() * 41);
-      
-      newReports.push({
-        id: Date.now() + i,
-        type: 'Impaired Driving',
-        description,
-        latitude: randomLocation.latitude + (Math.random() - 0.5) * 0.03,
-        longitude: randomLocation.longitude + (Math.random() - 0.5) * 0.03,
-        timestamp: `${hours}h ago`,
-        confirmed: false,
-        probability,
-      });
-    }
-    
-    setReports(newReports);
-    setRegion(newRegion);
-    mapRef.current?.animateToRegion(newRegion, 1000);
-    
-    Alert.alert(
-      "Mock Location Set",
-      `Now viewing ${randomLocation.name} (${numReports} impaired driving reports generated)`
-    );
-  };
   
-  const handleReportSubmit = () => {
+  const handleReportSubmit = async () => {
     console.log('Submit button pressed');
     console.log('reportType:', reportType);
     console.log('reportDescription:', reportDescription);
@@ -478,15 +431,26 @@ export default function PoliceViewScreen() {
       const probability = 30 + Math.floor(Math.random() * 41);
       
       const newReport = {
-        id: Date.now(),
-        type: reportType,
-        description: reportDescription,
+        report_id: Date.now(),
+        descriptor: reportDescription,
         latitude: region.latitude + (Math.random() - 0.5) * 0.01,
         longitude: region.longitude + (Math.random() - 0.5) * 0.01,
-        timestamp: 'Just now',
-        confirmed: false,
-        probability,
+        confirm_bool: "null",
+        probability: probability,
       };
+
+      try {
+        await fetch('http://127.0.0.1:5000/api/reports/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newReport),
+        });
+      }
+      catch (error) {
+        console.error('Error submitting report:', error);
+      }
       
       console.log('Creating new report:', newReport);
       setReports([newReport, ...reports]);
@@ -515,39 +479,16 @@ export default function PoliceViewScreen() {
       e.stopPropagation();
     }
     
-    console.log("Marker pressed for report", report.id);
+    console.log("Marker pressed for report", report.report_id);
     setMarkerPressed(true); // Set the flag to prevent map press from clearing selection
     setSelectedReport(report);
   };
 
-  const handleConfirmIncident = () => {
-    if (selectedReport) {
-      Alert.alert(
-        "Incident Confirmed",
-        `Thank you for confirming this impaired driving incident. This helps us validate our reports.`,
-        [
-          { 
-            text: "OK", 
-            onPress: () => {
-              // Update the report status to confirmed
-              const updatedReports = reports.map(r => 
-                r.id === selectedReport.id 
-                  ? {...r, confirmed: true} 
-                  : r
-              );
-              setReports(updatedReports);
-              // Update the selected report too
-              setSelectedReport({...selectedReport, confirmed: true});
-            } 
-          }
-        ]
-      );
-    }
-  };
+  
 
   const getMarkerColor = (report: Report) => {
     // If the report is confirmed, use deep red
-    if (report.confirmed) {
+    if (report.confirm_bool != "null") {
       return '#8B0000'; // Dark red for confirmed reports
     }
     
@@ -563,6 +504,11 @@ export default function PoliceViewScreen() {
     } else {
       return '#FFA500'; // Orange for lower probability (30-39%)
     }
+  };
+
+  // Add a refresh function to manually reload reports
+  const refreshReports = () => {
+    fetchReports();
   };
 
   if (isLoading) {
@@ -619,12 +565,12 @@ export default function PoliceViewScreen() {
           </View>
         </Marker>
         
-        {/* Incident Report Markers */}
+        {/* Impaired Driving Report Markers */}
         {reports.map((report) => {
           console.log(`Rendering marker at ${report.latitude}, ${report.longitude}`);
           return (
             <Marker
-              key={report.id}
+              key={report.report_id}
               coordinate={{
                 latitude: report.latitude,
                 longitude: report.longitude,
@@ -640,9 +586,9 @@ export default function PoliceViewScreen() {
             >
               <Callout tooltip>
                 <View style={[mapStyles.calloutView, { backgroundColor }]}>
-                  <ThemedText style={mapStyles.calloutTitle}>{report.type}</ThemedText>
-                  <ThemedText>{report.description}</ThemedText>
-                  <ThemedText style={mapStyles.timestampText}>{report.timestamp}</ThemedText>
+                  <ThemedText style={mapStyles.calloutTitle}>{"Impaired Driving"}</ThemedText>
+                  <ThemedText>{report.descriptor}</ThemedText>
+                  {/* <ThemedText style={mapStyles.timestampText}>{report.}</ThemedText> */}
                   
                   {/* Display the probability */}
                   <View style={{
@@ -660,7 +606,7 @@ export default function PoliceViewScreen() {
                     </ThemedText>
                   </View>
                   
-                  {report.confirmed && (
+                  {report.confirm_bool != "null" && (
                     <View style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -683,7 +629,7 @@ export default function PoliceViewScreen() {
       </MapView>
 
       {/* Floating Confirm Button */}
-      {selectedReport && !selectedReport.confirmed && (
+      {selectedReport && selectedReport.confirm_bool == "null" && (
         <View style={{
           position: 'absolute',
           bottom: 100,
@@ -706,15 +652,29 @@ export default function PoliceViewScreen() {
               shadowRadius: 3.84,
               elevation: 5,
             }}
-            onPress={() => {
+            onPress={async () => {
               // Update the report status to confirmed
               const updatedReports = reports.map(r => 
-                r.id === selectedReport.id 
-                  ? {...r, confirmed: true} 
+                r.report_id === selectedReport.report_id 
+                  ? {...r, confirm_bool: "safe"} 
                   : r
               );
               setReports(updatedReports);
-              
+              try {
+                await fetch(`http://127.0.0.1:5000/api/reports/confirm/${selectedReport.report_id}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    report_id: selectedReport.report_id,
+                    confirm_bool: "safe",
+                  }),
+                });
+              }
+              catch (error) {
+                console.error('Error confirming report:', error);
+              }
               // Immediately deselect the report after confirmation
               setSelectedReport(null);
             }}
@@ -755,10 +715,18 @@ export default function PoliceViewScreen() {
                   {
                     text: "Delete",
                     style: "destructive",
-                    onPress: () => {
+                    onPress: async () => {
                       // Remove the report from the reports array
-                      const updatedReports = reports.filter(r => r.id !== selectedReport.id);
+                      const updatedReports = reports.filter(r => r.report_id !== selectedReport.report_id);
                       setReports(updatedReports);
+                      try {
+                        await fetch(`http://127.0.0.1:5000/api/reports/${selectedReport.report_id}`, {
+                          method: 'DELETE',
+                        });
+                      }
+                      catch (error) {
+                        console.error('Error deleting report:', error);
+                      }
                       
                       // Deselect the report after deletion
                       setSelectedReport(null);
@@ -792,6 +760,17 @@ export default function PoliceViewScreen() {
           onPress={fitMapToMarkers}
         >
           <Ionicons name="eye" size={24} color={primaryColor} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[mapStyles.controlButton, { backgroundColor }]} 
+          onPress={refreshReports}
+          disabled={isLoadingReports}
+        >
+          {isLoadingReports ? (
+            <ActivityIndicator size="small" color={primaryColor} />
+          ) : (
+            <Ionicons name="refresh" size={24} color={primaryColor} />
+          )}
         </TouchableOpacity>
       </View>
       
