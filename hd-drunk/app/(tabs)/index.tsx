@@ -685,7 +685,7 @@ export default function PoliceViewScreen() {
       )}
 
       {/* Legend Panel */}
-      <View style={[mapStyles.legendPanel, { backgroundColor, zIndex: 900 }]}>
+      {/* <View style={[mapStyles.legendPanel, { backgroundColor, zIndex: 900 }]}>
         <ThemedText style={mapStyles.legendTitle}>Impaired Driving Reports</ThemedText>
         
         <View style={mapStyles.legendItem}>
@@ -717,7 +717,7 @@ export default function PoliceViewScreen() {
           <View style={[mapStyles.legendDot, { backgroundColor: 'blue' }]} />
           <ThemedText>Your Location</ThemedText>
         </View>
-      </View>
+      </View> */}
       
       {/* Controls */}
       <View style={customStyles.controls}>
@@ -756,26 +756,7 @@ export default function PoliceViewScreen() {
       >
         <View style={mapStyles.centeredView}>
           <View style={[mapStyles.modalView, { backgroundColor }]}>
-            <ThemedText style={mapStyles.modalTitle}>Log New Incident</ThemedText>
-            
-            <ThemedText style={mapStyles.label}>Type of Incident:</ThemedText>
-            <View style={mapStyles.reportTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  mapStyles.typeButton,
-                  { 
-                    backgroundColor: primaryColor,
-                    borderColor: primaryColor 
-                  }
-                ]}
-                onPress={() => setReportType('Drunk Driving')}
-              >
-                <ThemedText style={{ color: 'white' }}>
-                  Drunk Driving
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-            
+            <ThemedText style={mapStyles.modalTitle}>Report an Impaired Driving Incident</ThemedText>
             <ThemedText style={mapStyles.label}>Description:</ThemedText>
             <TextInput
               style={[mapStyles.input, { borderColor: primaryColor, color: textColor }]}
