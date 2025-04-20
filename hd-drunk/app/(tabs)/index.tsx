@@ -20,7 +20,7 @@ const DEFAULT_LOCATION = {
 const SAMPLE_REPORTS = [
   {
     id: 1,
-    type: 'Drunk Driving',
+    type: 'Impaired Driving',
     description: 'Vehicle swerving between lanes on highway',
     latitude: 37.78825,
     longitude: -122.4324,
@@ -30,7 +30,7 @@ const SAMPLE_REPORTS = [
   },
   {
     id: 2,
-    type: 'Drunk Driving',
+    type: 'Impaired Driving',
     description: 'Driver exhibiting erratic behavior at intersection',
     latitude: 37.79125,
     longitude: -122.4354,
@@ -40,8 +40,8 @@ const SAMPLE_REPORTS = [
   },
   {
     id: 3,
-    type: 'Drunk Driving',
-    description: 'Vehicle swerving on Main Street',
+    type: 'Impaired Driving',
+    description: 'Vehicle swerving across multiple lanes',
     latitude: 37.78525,
     longitude: -122.4294,
     timestamp: '1d ago',
@@ -50,8 +50,8 @@ const SAMPLE_REPORTS = [
   },
   {
     id: 4,
-    type: 'Drunk Driving',
-    description: 'Car running red lights on Market Street',
+    type: 'Impaired Driving',
+    description: 'Car over-correcting in traffic and swerving erratically',
     latitude: 37.7855,
     longitude: -122.4175,
     timestamp: '3h ago',
@@ -60,8 +60,8 @@ const SAMPLE_REPORTS = [
   },
   {
     id: 5,
-    type: 'Drunk Driving',
-    description: 'Suspected impaired driver weaving through traffic',
+    type: 'Impaired Driving',
+    description: 'Driver unable to maintain lane position',
     latitude: 37.7895,
     longitude: -122.4275,
     timestamp: '5h ago',
@@ -80,7 +80,7 @@ type Report = {
   timestamp: string;
   confirmed: boolean;
   status?: string;
-  probability?: number; // Probability of drunk driving (30-70%)
+  probability?: number; // Probability of impaired driving (30-70%)
 };
 
 export default function PoliceViewScreen() {
@@ -90,12 +90,13 @@ export default function PoliceViewScreen() {
   const [reports, setReports] = useState(SAMPLE_REPORTS);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [reportType, setReportType] = useState('');
+  const [reportType, setReportType] = useState('Impaired Driving');
   const [reportDescription, setReportDescription] = useState('');
   const [userLocation, setUserLocation] = useState({
     latitude: DEFAULT_LOCATION.latitude,
     longitude: DEFAULT_LOCATION.longitude,
   });
+  const [markerPressed, setMarkerPressed] = useState(false); // Track marker press events
   const mapRef = useRef<MapView | null>(null);
   
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#121212' }, 'background');
@@ -421,18 +422,18 @@ export default function PoliceViewScreen() {
       longitudeDelta: 0.0121,
     };
     
-    // Sample descriptions for drunk driving incidents
-    const drunkDrivingDescriptions = [
+    // Sample descriptions for impaired driving incidents
+    const impairedDrivingDescriptions = [
       "Vehicle swerving between lanes",
-      "Car driving erratically on main road",
-      "Driver running red lights",
-      "Vehicle speeding and weaving through traffic",
-      "Car driving on wrong side of the road",
-      "Vehicle stopped in middle of highway",
-      "Driver showing signs of impairment at stoplight",
-      "Car making dangerous turns and cutting off other drivers",
-      "Vehicle driving with headlights off at night",
-      "Driver exhibiting dangerous behavior at intersection"
+      "Car driving erratically and unable to maintain lane",
+      "Driver over-correcting at turns",
+      "Vehicle weaving through traffic erratically",
+      "Car drifting across lane markers repeatedly",
+      "Vehicle making sudden lane changes without signaling",
+      "Driver showing erratic speed changes and lane position",
+      "Car swerving to avoid imaginary obstacles",
+      "Vehicle unable to maintain consistent speed and position",
+      "Driver exhibiting delayed reactions at intersections"
     ];
     
     // Generate 6-10 random reports around the location
@@ -440,14 +441,14 @@ export default function PoliceViewScreen() {
     const newReports = [];
     
     for (let i = 0; i < numReports; i++) {
-      const description = drunkDrivingDescriptions[Math.floor(Math.random() * drunkDrivingDescriptions.length)];
+      const description = impairedDrivingDescriptions[Math.floor(Math.random() * impairedDrivingDescriptions.length)];
       const hours = Math.floor(Math.random() * 12) + 1;
       // Generate a random probability between 30 and 70
       const probability = 30 + Math.floor(Math.random() * 41);
       
       newReports.push({
         id: Date.now() + i,
-        type: 'Drunk Driving',
+        type: 'Impaired Driving',
         description,
         latitude: randomLocation.latitude + (Math.random() - 0.5) * 0.03,
         longitude: randomLocation.longitude + (Math.random() - 0.5) * 0.03,
@@ -463,7 +464,7 @@ export default function PoliceViewScreen() {
     
     Alert.alert(
       "Mock Location Set",
-      `Now viewing ${randomLocation.name} (${numReports} drunk driving reports generated)`
+      `Now viewing ${randomLocation.name} (${numReports} impaired driving reports generated)`
     );
   };
   
@@ -485,23 +486,38 @@ export default function PoliceViewScreen() {
       
       setReports([newReport, ...reports]);
       setModalVisible(false);
-      setReportType('');
+      setReportType('Impaired Driving');
       setReportDescription('');
     }
   };
 
+  // Handle map press events
+  const handleMapPress = (e: any) => {
+    // Only clear selection if we didn't just press a marker
+    if (!markerPressed) {
+      setSelectedReport(null);
+    }
+    // Reset the marker pressed flag
+    setMarkerPressed(false);
+  };
+
   // Handle marker press to show report details
-  const handleMarkerPress = (report: Report) => {
+  const handleMarkerPress = (report: Report, e: any) => {
+    // Stop event propagation to prevent map press from triggering
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    
     console.log("Marker pressed for report", report.id);
-    setSelectedReport(() => report);
-    console.log("Selected report:", selectedReport);
+    setMarkerPressed(true); // Set the flag to prevent map press from clearing selection
+    setSelectedReport(report);
   };
 
   const handleConfirmIncident = () => {
     if (selectedReport) {
       Alert.alert(
         "Incident Confirmed",
-        `Thank you for confirming this drunk driving incident. This helps us validate our reports.`,
+        `Thank you for confirming this impaired driving incident. This helps us validate our reports.`,
         [
           { 
             text: "OK", 
@@ -546,13 +562,13 @@ export default function PoliceViewScreen() {
     return (
       <View style={[mapStyles.container, { backgroundColor }]}>
         <ActivityIndicator size="large" color={primaryColor} />
-        <ThemedText style={{ marginTop: 10 }}>Loading map and drunk driving reports...</ThemedText>
+        <ThemedText style={{ marginTop: 10 }}>Loading map and impaired driving reports...</ThemedText>
       </View>
     );
   }
 
   // Debug log for markers
-  console.log(`Rendering ${reports.length} drunk driving markers`);
+  console.log(`Rendering ${reports.length} impaired driving markers`);
   
   return (
     <View style={[mapStyles.container, { position: 'relative' }]}>
@@ -569,7 +585,7 @@ export default function PoliceViewScreen() {
           // Ensure reports are visible by fitting the map to show all markers
           setTimeout(() => fitMapToMarkers(), 500);
         }}
-        //onPress={() => setSelectedReport(null)} // Clear selection when map is tapped
+        onPress={handleMapPress}
       >
         {/* Custom Location Marker */}
         <Marker
@@ -579,8 +595,22 @@ export default function PoliceViewScreen() {
           }}
           title="Your location"
           description="You are here"
-          pinColor="blue"
-        />
+        >
+          <View style={{
+            backgroundColor: primaryColor,
+            borderRadius: 50,
+            padding: 8,
+            borderWidth: 2,
+            borderColor: 'white',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+            elevation: 5,
+          }}>
+            <Ionicons name="person" size={18} color="white" />
+          </View>
+        </Marker>
         
         {/* Incident Report Markers */}
         {reports.map((report) => {
@@ -593,11 +623,13 @@ export default function PoliceViewScreen() {
                 longitude: report.longitude,
               }}
               pinColor={getMarkerColor(report)}
-              onPress={() => {
-                // Just set the selected report without additional side effects
-                setSelectedReport(report);
-                return false; // Let the callout show naturally
+              onPress={(e) => {
+                // Pass the event object to the handler
+                handleMarkerPress(report, e);
+                // Return true to prevent the map's onPress from firing
+                return true;
               }}
+              tracksViewChanges={false}
             >
               <Callout tooltip>
                 <View style={[mapStyles.calloutView, { backgroundColor }]}>
@@ -645,79 +677,94 @@ export default function PoliceViewScreen() {
 
       {/* Floating Confirm Button */}
       {selectedReport && !selectedReport.confirmed && (
-        <TouchableOpacity
-          style={{
-            position: 'absolute',
-            bottom: 100,
-            alignSelf: 'center',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0, 128, 0, 0.1)',
-            paddingVertical: 8,
-            paddingHorizontal: 16,
-            borderRadius: 20,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-            elevation: 5,
-          }}
-          onPress={() => {
-            // Update the report status to confirmed
-            const updatedReports = reports.map(r => 
-              r.id === selectedReport.id 
-                ? {...r, confirmed: true} 
-                : r
-            );
-            setReports(updatedReports);
-          }}
-        >
-          <Ionicons name="checkmark-circle" size={18} color="green" />
-          <ThemedText style={{
-            marginLeft: 5,
-            fontWeight: 'bold',
-            color: 'green',
-          }}>
-            Confirm Incident
-          </ThemedText>
-        </TouchableOpacity>
-      )}
+        <View style={{
+          position: 'absolute',
+          bottom: 100,
+          alignSelf: 'center',
+          flexDirection: 'row',
+          gap: 10,
+        }}>
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: primaryColor,
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 20,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+              elevation: 5,
+            }}
+            onPress={() => {
+              // Update the report status to confirmed
+              const updatedReports = reports.map(r => 
+                r.id === selectedReport.id 
+                  ? {...r, confirmed: true} 
+                  : r
+              );
+              setReports(updatedReports);
+              
+              // Immediately deselect the report after confirmation
+              setSelectedReport(null);
+            }}
+          >
+            <Ionicons name="checkmark-circle" size={18} color="white" />
+            <ThemedText style={{
+              marginLeft: 5,
+              fontWeight: 'bold',
+              color: 'white',
+            }}>
+              Confirm Event
+            </ThemedText>
+          </TouchableOpacity>
 
-      {/* Legend Panel */}
-      {/* <View style={[mapStyles.legendPanel, { backgroundColor, zIndex: 900 }]}>
-        <ThemedText style={mapStyles.legendTitle}>Impaired Driving Reports</ThemedText>
-        
-        <View style={mapStyles.legendItem}>
-          <View style={[mapStyles.legendDot, { backgroundColor: '#8B0000' }]} />
-          <ThemedText>Confirmed Report</ThemedText>
+          <TouchableOpacity
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: accentColor,
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+              elevation: 5,
+            }}
+            onPress={() => {
+              Alert.alert(
+                "Delete Incident",
+                "Are you sure you want to delete this incident report?",
+                [
+                  {
+                    text: "Cancel",
+                    style: "cancel"
+                  },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                      // Remove the report from the reports array
+                      const updatedReports = reports.filter(r => r.id !== selectedReport.id);
+                      setReports(updatedReports);
+                      
+                      // Deselect the report after deletion
+                      setSelectedReport(null);
+                    }
+                  }
+                ]
+              );
+            }}
+          >
+            <Ionicons name="trash" size={18} color="white" />
+          </TouchableOpacity>
         </View>
-        
-        <View style={mapStyles.legendItem}>
-          <View style={[mapStyles.legendDot, { backgroundColor: '#FF0000' }]} />
-          <ThemedText>High Probability (65-70%)</ThemedText>
-        </View>
-        
-        <View style={mapStyles.legendItem}>
-          <View style={[mapStyles.legendDot, { backgroundColor: '#FF4500' }]} />
-          <ThemedText>Medium-High (50-64%)</ThemedText>
-        </View>
-        
-        <View style={mapStyles.legendItem}>
-          <View style={[mapStyles.legendDot, { backgroundColor: '#FF8C00' }]} />
-          <ThemedText>Medium (40-49%)</ThemedText>
-        </View>
-        
-        <View style={mapStyles.legendItem}>
-          <View style={[mapStyles.legendDot, { backgroundColor: '#FFA500' }]} />
-          <ThemedText>Low (30-39%)</ThemedText>
-        </View>
-        
-        <View style={mapStyles.legendItem}>
-          <View style={[mapStyles.legendDot, { backgroundColor: 'blue' }]} />
-          <ThemedText>Your Location</ThemedText>
-        </View>
-      </View> */}
+      )}
       
       {/* Controls */}
       <View style={customStyles.controls}>
@@ -730,12 +777,6 @@ export default function PoliceViewScreen() {
         <TouchableOpacity 
           style={[mapStyles.controlButton, { backgroundColor }]} 
           onPress={() => setModalVisible(true)}
-        >
-          <Ionicons name="add-circle" size={24} color={accentColor} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[mapStyles.controlButton, { backgroundColor }]} 
-          onPress={setMockLocation}
         >
           <Ionicons name="location" size={24} color={primaryColor} />
         </TouchableOpacity>
