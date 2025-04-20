@@ -12,7 +12,8 @@ import {
   StatusBar,
   ActivityIndicator,
   Keyboard,
-  ScrollView
+  ScrollView,
+  Image
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -135,7 +136,11 @@ export default function RegisterScreen() {
             {/* App Logo and Title */}
             <View style={styles.logoContainer}>
               <View style={styles.logoCircle}>
-                <Ionicons name="shield" size={48} color={primaryColor} />
+                <Image 
+                  source={require('../assets/images/heqtech_small_transparent.png')} 
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={[styles.title, { color: textColor }]}>Create Account</Text>
               <Text style={[styles.subtitle, { color: textColor }]}>Join the heq.tech community</Text>
@@ -314,6 +319,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 5,
+  },
+  logoImage: {
+    width: 60,
+    height: 60,
   },
   title: {
     fontSize: 28,
