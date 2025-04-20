@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, ActivityIndicator, Modal, Alert, StyleSheet } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
-import * as Location from 'expo-location';
+import { View, TextInput, TouchableOpacity, ActivityIndicator, Modal, Alert } from 'react-native';
+import MapView, { Marker, Callout, Region, Circle } from 'react-native-maps';import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -17,6 +16,7 @@ const DEFAULT_LOCATION = {
 };
 
 // Sample mock data for citizen reports
+// Sample mock data for citizen reports
 const SAMPLE_REPORTS = [
   {
     id: 1,
@@ -25,7 +25,6 @@ const SAMPLE_REPORTS = [
     latitude: 37.78825,
     longitude: -122.4324,
     timestamp: '2h ago',
-    confirmed: false,
   },
   {
     id: 2,
@@ -34,7 +33,6 @@ const SAMPLE_REPORTS = [
     latitude: 37.79125,
     longitude: -122.4354,
     timestamp: '4h ago',
-    confirmed: false,
   },
   {
     id: 3,
@@ -43,20 +41,144 @@ const SAMPLE_REPORTS = [
     latitude: 37.78525,
     longitude: -122.4294,
     timestamp: '1d ago',
-    confirmed: false,
+  },
+  {
+    id: 4,
+    type: 'Impaired Driving',
+    description: 'Erratic driving near the park',
+    latitude: 37.78675,
+    longitude: -122.4319,
+    timestamp: '30m ago',
+  },
+  {
+    id: 5,
+    type: 'Impaired Driving',
+    description: 'Driver ran a red light',
+    latitude: 37.78925,
+    longitude: -122.4344,
+    timestamp: '15m ago',
+  },
+  {
+    id: 6,
+    type: 'Impaired Driving',
+    description: 'Car speeding in residential area',
+    latitude: 37.78725,
+    longitude: -122.4334,
+    timestamp: '10m ago',
+  },
+  {
+    id: 7,
+    type: 'Impaired Driving',
+    description: 'Driver almost hit a pedestrian',
+    latitude: 37.78425,
+    longitude: -122.4304,
+    timestamp: '5m ago',
+  },
+  {
+    id: 8,
+    type: 'Impaired Driving',
+    description: 'Car stopped in the middle of the road',
+    latitude: 37.79025,
+    longitude: -122.4364,
+    timestamp: '1h ago',
+  },
+  {
+    id: 9,
+    type: 'Impaired Driving',
+    description: 'Driver swerving between lanes',
+    latitude: 37.78875,
+    longitude: -122.4329,
+    timestamp: '3h ago',
+  },
+  {
+    id: 10,
+    type: 'Impaired Driving',
+    description: 'Car driving on the wrong side of the road',
+    latitude: 37.78975,
+    longitude: -122.4339,
+    timestamp: '2h ago',
+  },
+  {
+    id: 11,
+    type: 'Impaired Driving',
+    description: 'Driver honking excessively',
+    latitude: 37.78775,
+    longitude: -122.4314,
+    timestamp: '45m ago',
+  },
+  {
+    id: 12,
+    type: 'Impaired Driving',
+    description: 'Car parked in the middle of the intersection',
+    latitude: 37.78625,
+    longitude: -122.4299,
+    timestamp: '20m ago',
+  },
+  {
+    id: 13,
+    type: 'Impaired Driving',
+    description: 'Erratic driving near the park',
+    latitude: 38.5001,
+    longitude: -121.7501,
+    timestamp: '10m ago',
+  },
+  {
+    id: 14,
+    type: 'Impaired Driving',
+    description: 'Driver ran a red light',
+    latitude: 38.5015,
+    longitude: -121.7512,
+    timestamp: '15m ago',
+  },
+  {
+    id: 15,
+    type: 'Impaired Driving',
+    description: 'Car speeding in residential area',
+    latitude: 38.5023,
+    longitude: -121.7523,
+    timestamp: '20m ago',
+  },
+  {
+    id: 16,
+    type: 'Impaired Driving',
+    description: 'Driver almost hit a pedestrian',
+    latitude: 38.5031,
+    longitude: -121.7534,
+    timestamp: '25m ago',
+  },
+  {
+    id: 17,
+    type: 'Impaired Driving',
+    description: 'Car stopped in the middle of the road',
+    latitude: 38.5042,
+    longitude: -121.7545,
+    timestamp: '30m ago',
+  },
+  {
+    id: 18,
+    type: 'Impaired Driving',
+    description: 'Driver swerving between lanes',
+    latitude: 38.5053,
+    longitude: -121.7556,
+    timestamp: '35m ago',
+  },
+  {
+    id: 19,
+    type: 'Impaired Driving',
+    description: 'Car driving on the wrong side of the road',
+    latitude: 38.5064,
+    longitude: -121.7567,
+    timestamp: '40m ago',
+  },
+  {
+    id: 20,
+    type: 'Impaired Driving',
+    description: 'Driver honking excessively',
+    latitude: 38.5075,
+    longitude: -121.7578,
+    timestamp: '45m ago',
   },
 ];
-
-// Define a type for the report
-type Report = {
-  id: number;
-  type: string;
-  description: string;
-  latitude: number;
-  longitude: number;
-  timestamp: string;
-  confirmed: boolean;
-};
 
 export default function CitizenWatchScreen() {
   const [region, setRegion] = useState<Region>(DEFAULT_LOCATION);
@@ -64,8 +186,6 @@ export default function CitizenWatchScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [reportType, setReportType] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [userLocation, setUserLocation] = useState({
@@ -78,24 +198,6 @@ export default function CitizenWatchScreen() {
   const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
   const primaryColor = useThemeColor({ light: '#A1CEDC', dark: '#1D3D47' }, 'tint');
   const accentColor = useThemeColor({ light: '#FF6347', dark: '#FF6347' }, 'tint');
-
-  // Custom styles for confirmation UI
-  const customStyles = StyleSheet.create({
-    confirmedContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(0, 128, 0, 0.1)',
-      padding: 8,
-      borderRadius: 5,
-      marginTop: 8,
-    },
-    confirmedText: {
-      marginLeft: 5,
-      fontWeight: 'bold',
-      color: 'green',
-    }
-  });
 
   useEffect(() => {
     let locationTimeout: NodeJS.Timeout;
@@ -273,7 +375,6 @@ export default function CitizenWatchScreen() {
         latitude: region.latitude,
         longitude: region.longitude,
         timestamp: 'Just now',
-        confirmed: false,
       };
       
       setReports([newReport, ...reports]);
@@ -286,13 +387,6 @@ export default function CitizenWatchScreen() {
   const getMarkerColor = (type: string) => {
     // Since all reports are Impaired driving, return red for all markers
     return 'red';
-  };
-
-  // Handle marker press to show report details
-  const handleMarkerPress = (report: Report) => {
-    console.log("Marker pressed for report", report.id);
-    setSelectedReport(report);
-    setReportModalVisible(true);
   };
 
   if (isLoading) {
@@ -312,34 +406,57 @@ export default function CitizenWatchScreen() {
       
       {/* Map View */}
       <MapView
-        ref={mapRef}
-        style={mapStyles.map}
-        region={region}
-        showsUserLocation={false} // Disable default user location blue dot
-        onRegionChangeComplete={setRegion}
-      >
-        {/* User Location Marker */}
-        <Marker
-          coordinate={{
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
-          }}
-          title="Your location"
-          description="You are here"
-          pinColor="blue"
-        />
-        {reports.map((report) => (
-          <Marker
-            key={report.id}
-            coordinate={{
-              latitude: report.latitude,
-              longitude: report.longitude,
-            }}
-            pinColor={getMarkerColor(report.type)}
-            onPress={() => handleMarkerPress(report)}
-          />
-        ))}
-      </MapView>
+  ref={mapRef}
+  style={mapStyles.map}
+  region={region}
+  showsUserLocation={false} // Disable default user location blue dot
+  onRegionChangeComplete={setRegion}
+>
+  {/* Custom Heatmap using Circles */}
+  {reports.map((report, index) => (
+    <Circle
+      key={`heatmap-${index}`}
+      center={{
+        latitude: report.latitude,
+        longitude: report.longitude,
+      }}
+      radius={500} // Adjust radius to represent density
+      fillColor="rgba(255, 0, 0, 0.3)" // Semi-transparent red
+      strokeColor="rgba(255, 0, 0, 0.1)" // Optional: lighter stroke
+    />
+  ))}
+
+  {/* User Location Marker */}
+  <Marker
+    coordinate={{
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+    }}
+    title="Your location"
+    description="You are here"
+    pinColor="blue"
+  />
+
+  {/* Report Markers
+  {reports.map((report) => (
+    <Marker
+      key={report.id}
+      coordinate={{
+        latitude: report.latitude,
+        longitude: report.longitude,
+      }}
+      pinColor={getMarkerColor(report.type)}
+    >
+      <Callout tooltip>
+        <View style={[mapStyles.calloutView, { backgroundColor }]}>
+          <ThemedText style={mapStyles.calloutTitle}>{report.type}</ThemedText>
+          <ThemedText>{report.description}</ThemedText>
+          <ThemedText style={mapStyles.timestampText}>{report.timestamp}</ThemedText>
+        </View>
+      </Callout>
+    </Marker>
+  ))} */}
+</MapView>
       
       {/* Controls */}
       <View style={mapStyles.controls}>
@@ -422,86 +539,6 @@ export default function CitizenWatchScreen() {
         </View>
       </Modal>
       
-      {/* Report Details Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={reportModalVisible}
-        onRequestClose={() => setReportModalVisible(false)}
-      >
-        <View style={styles.centeredView}>
-          <View style={[styles.modalView, { backgroundColor }]}>
-            {selectedReport && (
-              <>
-                <ThemedText style={styles.modalTitle}>{selectedReport.type}</ThemedText>
-                <ThemedText style={styles.modalDescription}>{selectedReport.description}</ThemedText>
-                <ThemedText style={styles.timestampText}>{selectedReport.timestamp}</ThemedText>
-                
-                {selectedReport.confirmed ? (
-                  <View style={customStyles.confirmedContainer}>
-                    <Ionicons name="checkmark-circle" size={16} color="green" />
-                    <ThemedText style={customStyles.confirmedText}>Incident Confirmed</ThemedText>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={[
-                      mapStyles.calloutButton, 
-                      { 
-                        padding: 12,
-                        backgroundColor: primaryColor,
-                        borderRadius: 8,
-                        marginTop: 15,
-                        marginBottom: 5,
-                        width: '80%',
-                        alignItems: 'center',
-                      }
-                    ]}
-                    onPress={() => {
-                      console.log("Button pressed for report", selectedReport.id);
-                      Alert.alert(
-                        "Incident Confirmed",
-                        "Thank you for confirming this Impaired Driving incident. This helps us validate our reports.",
-                        [{ 
-                          text: "OK",
-                          onPress: () => {
-                            console.log("Alert OK pressed");
-                            // Update the report status to confirmed
-                            const updatedReports = reports.map(r => 
-                              r.id === selectedReport.id 
-                                ? {...r, confirmed: true} 
-                                : r
-                            );
-                            setReports(updatedReports);
-                            setReportModalVisible(false);
-                          }
-                        }]
-                      );
-                    }}
-                  >
-                    <ThemedText style={{ color: 'white', fontWeight: 'bold' }}>Confirm Incident</ThemedText>
-                  </TouchableOpacity>
-                )}
-                
-                <TouchableOpacity
-                  style={[
-                    mapStyles.button, 
-                    { 
-                      backgroundColor: '#ccc',
-                      marginTop: 15,
-                      width: '80%',
-                      alignItems: 'center',
-                    }
-                  ]}
-                  onPress={() => setReportModalVisible(false)}
-                >
-                  <ThemedText>Close</ThemedText>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
-      
       {/* Error Message */}
       {errorMsg && (
         <View style={mapStyles.errorContainer}>
@@ -524,40 +561,3 @@ export default function CitizenWatchScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalView: {
-    width: '80%',
-    borderRadius: 10,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  modalDescription: {
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  timestampText: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 5,
-  },
-});
-

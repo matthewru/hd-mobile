@@ -26,6 +26,7 @@ const SAMPLE_REPORTS = [
     longitude: -122.4324,
     timestamp: '2h ago',
     confirmed: false,
+    probability: 70,
   },
   {
     id: 2,
@@ -35,6 +36,7 @@ const SAMPLE_REPORTS = [
     longitude: -122.4354,
     timestamp: '4h ago',
     confirmed: false,
+    probability: 55,
   },
   {
     id: 3,
@@ -44,6 +46,7 @@ const SAMPLE_REPORTS = [
     longitude: -122.4294,
     timestamp: '1d ago',
     confirmed: false,
+    probability: 45,
   },
   {
     id: 4,
@@ -53,6 +56,7 @@ const SAMPLE_REPORTS = [
     longitude: -122.4175,
     timestamp: '3h ago',
     confirmed: false,
+    probability: 65,
   },
   {
     id: 5,
@@ -62,6 +66,7 @@ const SAMPLE_REPORTS = [
     longitude: -122.4275,
     timestamp: '5h ago',
     confirmed: false,
+    probability: 30,
   },
 ];
 
@@ -75,6 +80,7 @@ type Report = {
   timestamp: string;
   confirmed: boolean;
   status?: string;
+  probability?: number; // Probability of drunk driving (30-70%)
 };
 
 export default function PoliceViewScreen() {
@@ -436,6 +442,8 @@ export default function PoliceViewScreen() {
     for (let i = 0; i < numReports; i++) {
       const description = drunkDrivingDescriptions[Math.floor(Math.random() * drunkDrivingDescriptions.length)];
       const hours = Math.floor(Math.random() * 12) + 1;
+      // Generate a random probability between 30 and 70
+      const probability = 30 + Math.floor(Math.random() * 41);
       
       newReports.push({
         id: Date.now() + i,
@@ -445,6 +453,7 @@ export default function PoliceViewScreen() {
         longitude: randomLocation.longitude + (Math.random() - 0.5) * 0.03,
         timestamp: `${hours}h ago`,
         confirmed: false,
+        probability,
       });
     }
     
@@ -460,6 +469,9 @@ export default function PoliceViewScreen() {
   
   const handleReportSubmit = () => {
     if (reportType && reportDescription) {
+      // Generate a random probability between 30 and 70
+      const probability = 30 + Math.floor(Math.random() * 41);
+      
       const newReport = {
         id: Date.now(),
         type: reportType,
@@ -468,6 +480,7 @@ export default function PoliceViewScreen() {
         longitude: region.longitude + (Math.random() - 0.5) * 0.01,
         timestamp: 'Just now',
         confirmed: false,
+        probability,
       };
       
       setReports([newReport, ...reports]);
@@ -509,9 +522,24 @@ export default function PoliceViewScreen() {
     }
   };
 
-  const getMarkerColor = (type: string) => {
-    // Since all reports are drunk driving, return red for all markers
-    return 'red';
+  const getMarkerColor = (report: Report) => {
+    // If the report is confirmed, use deep red
+    if (report.confirmed) {
+      return '#8B0000'; // Dark red for confirmed reports
+    }
+    
+    // For unconfirmed reports, color based on probability
+    const probability = report.probability || 50; // Default to 50 if not specified
+    
+    if (probability >= 65) {
+      return '#FF0000'; // Bright red for high probability (65-70%)
+    } else if (probability >= 50) {
+      return '#FF4500'; // Orange-red for medium-high probability (50-64%)
+    } else if (probability >= 40) {
+      return '#FF8C00'; // Dark orange for medium probability (40-49%)
+    } else {
+      return '#FFA500'; // Orange for lower probability (30-39%)
+    }
   };
 
   if (isLoading) {
@@ -564,7 +592,7 @@ export default function PoliceViewScreen() {
                 latitude: report.latitude,
                 longitude: report.longitude,
               }}
-              pinColor={getMarkerColor(report.type)}
+              pinColor={getMarkerColor(report)}
               onPress={() => {
                 // Just set the selected report without additional side effects
                 setSelectedReport(report);
@@ -576,6 +604,22 @@ export default function PoliceViewScreen() {
                   <ThemedText style={mapStyles.calloutTitle}>{report.type}</ThemedText>
                   <ThemedText>{report.description}</ThemedText>
                   <ThemedText style={mapStyles.timestampText}>{report.timestamp}</ThemedText>
+                  
+                  {/* Display the probability */}
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    padding: 4,
+                    borderRadius: 4,
+                    marginTop: 5,
+                  }}>
+                    <Ionicons name="analytics-outline" size={12} color="#777" />
+                    <ThemedText style={{ marginLeft: 4, fontSize: 12, color: '#777' }}>
+                      {report.probability || 50}% probability
+                    </ThemedText>
+                  </View>
                   
                   {report.confirmed && (
                     <View style={{
@@ -627,11 +671,6 @@ export default function PoliceViewScreen() {
                 : r
             );
             setReports(updatedReports);
-            
-            Alert.alert(
-              "Incident Confirmed",
-              "Thank you for confirming this drunk driving incident."
-            );
           }}
         >
           <Ionicons name="checkmark-circle" size={18} color="green" />
@@ -648,10 +687,32 @@ export default function PoliceViewScreen() {
       {/* Legend Panel */}
       <View style={[mapStyles.legendPanel, { backgroundColor, zIndex: 900 }]}>
         <ThemedText style={mapStyles.legendTitle}>Impaired Driving Reports</ThemedText>
+        
         <View style={mapStyles.legendItem}>
-          <View style={[mapStyles.legendDot, { backgroundColor: 'red' }]} />
-          <ThemedText>Impaired Driving</ThemedText>
+          <View style={[mapStyles.legendDot, { backgroundColor: '#8B0000' }]} />
+          <ThemedText>Confirmed Report</ThemedText>
         </View>
+        
+        <View style={mapStyles.legendItem}>
+          <View style={[mapStyles.legendDot, { backgroundColor: '#FF0000' }]} />
+          <ThemedText>High Probability (65-70%)</ThemedText>
+        </View>
+        
+        <View style={mapStyles.legendItem}>
+          <View style={[mapStyles.legendDot, { backgroundColor: '#FF4500' }]} />
+          <ThemedText>Medium-High (50-64%)</ThemedText>
+        </View>
+        
+        <View style={mapStyles.legendItem}>
+          <View style={[mapStyles.legendDot, { backgroundColor: '#FF8C00' }]} />
+          <ThemedText>Medium (40-49%)</ThemedText>
+        </View>
+        
+        <View style={mapStyles.legendItem}>
+          <View style={[mapStyles.legendDot, { backgroundColor: '#FFA500' }]} />
+          <ThemedText>Low (30-39%)</ThemedText>
+        </View>
+        
         <View style={mapStyles.legendItem}>
           <View style={[mapStyles.legendDot, { backgroundColor: 'blue' }]} />
           <ThemedText>Your Location</ThemedText>
